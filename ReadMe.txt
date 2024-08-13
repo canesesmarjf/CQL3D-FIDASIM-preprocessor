@@ -1,3 +1,8 @@
+
+# ============================================================
+This directory/project is now code repository tracked with GIT
+# ============================================================
+
 The objective of this directory is compute the FIDASIM input files directly from the CQL3DM files
 
 As a secondary objective, we use these newly created input files to run FIDASIM in any of the run formats: OpenMP, MPI, debug MPI and debug single thread.

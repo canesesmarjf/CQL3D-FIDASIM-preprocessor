@@ -1,0 +1,17 @@
+# Ignore all .h5 files:
+*.h5
+
+# Ignore all .nc files:
+*.nc
+
+# Ignore all .ps files:
+*.ps
+
+# Ignore all .dat files:
+*.dat
+
+# Ignore all .png files:
+*.png
+
+# Ignore all files relating to pycharm env:
+.idea/

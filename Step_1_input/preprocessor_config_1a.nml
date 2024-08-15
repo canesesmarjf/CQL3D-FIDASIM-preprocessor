@@ -1,0 +1,70 @@
+&fidasim_run_info
+  runid = "WHAM_example"
+  comment = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
+/
+
+&preprocessor_output
+  output_dir = "./Step_1_output/"
+/
+
+&cql3d_input_files
+
+  ! input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
+  ! plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
+  ! f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
+  ! f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
+  ! equil_file_name = "eqdsk_wham_expander"
+  ! cqlinput = "cqlinput"
+
+  input_dir = "./Step_1_input/"
+  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
+  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
+  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
+  equil_file_name = "eqdsk_wham_expander"
+  cqlinput = "cqlinput"
+/
+
+&rz_interpolation_grid
+  rmin = 0.01 ! [cm]
+  rmax = 20.0 ! [cm]
+  nr = 150
+  zmin = -200.0 ! [cm]
+  zmax = 200.0 ! [cm]
+  nz = 100
+/
+
+&plasma_profiles_params
+  impurity_charge = 6
+  rho_LCFS = 0.9
+  dene_LCFS = 1e6
+  te_LCFS = 0.001
+  ti_LCFS = 0.001
+  zeff_LCFS = 1.0
+/
+
+&beam_physics_switches
+  enable_nonthermal_calc = 1
+  calc_birth = 1
+  calc_dcx = 1
+  calc_halo = 1
+/
+
+&monte_carlo_particles
+  ! Define number of Monte-Carlo particles:
+  n_nbi = 5e4
+  n_birth = 5e4
+  n_dcx = 5e4
+  n_halo = 5e4
+/
+
+&beam_grid
+  ! Define beam grid parameters:
+  beam_aligned = .false.  ! Option between machine-aligned or beam-aligned
+  nx = 70
+  ny = 120
+  nz = 120
+  rstart = 50.0  ! [cm] Only works for "beam_aligned" == True
+  length = 200.0 ! [cm]
+  width = 40.0   ! [cm]
+  height = 40.0 ! [cm]
+/

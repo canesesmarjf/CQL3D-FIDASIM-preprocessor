@@ -15,3 +15,7 @@
 
 # Ignore all files relating to pycharm env:
 .idea/
+
+__pycache__
+*.asv
+superseded/

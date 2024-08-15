@@ -161,7 +161,7 @@ file_name = "./Step_1_input/WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300
 info = ncinfo(file_name);
 powers = ncread(file_name,'/powers');
 powers_int = ncread(file_name,'/powers_int'); % 'powers(*,6,k,t)=Ion particle source'
-
+nbi_power_cql3d = powers_int(end,1,end); % [W]
 
 %% Birth points:
 
@@ -174,6 +174,24 @@ info = h5info(input_dir + runid + "_birth.h5");
 n_birth = h5read(input_dir + runid + "_birth.h5",'/n_birth');
 birth.ri = h5read(input_dir + runid + "_birth.h5",'/ri');
 
+% Get grid data:
+birth.x_grid = h5read(input_dir + runid + "_birth.h5",'/grid/x');
+birth.y_grid = h5read(input_dir + runid + "_birth.h5",'/grid/y');
+birth.z_grid = h5read(input_dir + runid + "_birth.h5",'/grid/z');
+
+% Grid cell volume:
+birth.dx_grid = mean(diff(birth.x_grid));
+birth.dy_grid = mean(diff(birth.y_grid));
+birth.dz_grid = mean(diff(birth.z_grid));
+birth.dV_grid = birth.dx_grid*birth.dy_grid*birth.dz_grid; 
+
+% Birth profiles: [ions*cm^{-3}/sec], size: [neut_type:3, nx:70, ny:50, nz:50]
+birth.dens = h5read(input_dir + runid + "_birth.h5",'/dens');
+birth.dens_full = permute(birth.dens(1,:,:,:),[2 3 4 1]);
+birth.dens_half = permute(birth.dens(2,:,:,:),[2 3 4 1]);
+birth.dens_third = permute(birth.dens(3,:,:,:),[2 3 4 1]);
+
+% Birth position:
 birth.R = birth.ri(1,:);
 birth.Z = birth.ri(2,:);
 birth.phi = birth.ri(3,:) + pi/2;
@@ -195,9 +213,16 @@ birth.energy = h5read(input_dir + runid + "_birth.h5",'/energy');
 % Total power in ions deposited in [W]:
 Pabs = sum(birth.energy.*birth.w*1e3*e_c);
 shinethrough = 1 - Pabs/Pinj;
-disp("Total NBI power injected: " + num2str(Pinj*1e-3,4) + " [kW]")
-disp("Total NBI power absorbed: " + num2str(Pabs*1e-3,4) + " [kW]")
-disp(num2str(shinethrough*100,4) + "% shine-through")
+disp(" ")
+disp("(FIDASIM) Total NBI power injected: " + num2str(Pinj*1e-3,4) + " [kW]")
+disp("(FIDASIM) Total NBI power absorbed: " + num2str(Pabs*1e-3,4) + " [kW]")
+disp("(FIDASIM) " + num2str(shinethrough*100,4) + "% shine-through")
+
+% CQL3D NBI power:
+shinethrough = 1 - nbi_power_cql3d/Pinj;
+disp(" ")
+disp("(CQL3D-M) Total NBI power absorbed: " + num2str(nbi_power_cql3d*1e-3,4) + " [kW]")
+disp("(CQL3D-M) " + num2str(shinethrough*100,4) + "% shine-through")
 
 %% Plotting geometry:
 
@@ -239,7 +264,8 @@ bflux = compute_magnetic_flux_2(fields);
 
 % Obtain the magnetic flux at the plasma edge:
 r_edge = 10/100; % [m]
-bflux_LCFS = fields.bz(1,50)*pi*r_edge^2;
+numdim = size(fields.bz,2);
+bflux_LCFS = fields.bz(1,round(numdim/2))*pi*r_edge^2;
 
 % Normalized magnetic flux
 phi = bflux/bflux_LCFS;
@@ -328,6 +354,11 @@ lighting gouraud;
 
 % Add birth points:
 plot3(birth.X,birth.Y,birth.Z,'k.')
+
+% Add grid:
+[xx,zz] = meshgrid(birth.x_grid,birth.z_grid);
+plot3(zz,zeros(size(zz)),xx,'k')
+plot3(zz',zeros(size(zz')),xx','k')
 
 %% Neutral densities:
 info = h5info(input_dir + runid + "_neutrals.h5");

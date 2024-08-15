@@ -1,37 +1,54 @@
 import sys
 import os
+import datetime
 import warnings
 import f90nml
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator, griddata
-
-# Add FIDASIM specific libraries
-FIDASIM_dir = "/home/jfcm/Repos/FIDASIM/"
-sys.path.append(FIDASIM_dir + 'lib/python')
-
-from fidasim.utils import read_geqdsk, rz_grid, beam_grid, read_ncdf
-import fidasim as fs
 import matplotlib
 matplotlib.use('TkAgg')  # Use TkAgg backend
 import matplotlib.pyplot as plt
 plt.ion()  # Turn on interactive mode
 
-# Define physical constans:
+# Define physical constants:
 mass_proton_CGI = 1.6726E-24 # CGI units [g]
 charge_electron_SI = 1.60217663E-19  # SI units [C]
 mass_proton_SI = 1.67262192E-27  # SI units [Kg]
 mass_electron_SI = 9.1093837E-31  # SI units [Kg]
 
+def set_fidasim_dir(path):
+    """Set the FIDASIM directory and update the system path."""
+
+    if not os.path.isdir(path):
+        raise ValueError(f"The provided path {path} is not a valid directory.")
+
+    global FIDASIM_dir
+    FIDASIM_dir = path
+    sys.path.append(os.path.join(FIDASIM_dir, 'lib/python'))
+
+    try:
+        global read_geqdsk, rz_grid, beam_grid, read_ncdf, fs
+        from fidasim.utils import read_geqdsk, rz_grid, beam_grid, read_ncdf
+        import fidasim as fs
+    except ImportError as e:
+        raise ImportError(f"Failed to import FIDASIM libraries: {e}")
+
 def read_fields(file_name,grid):
+
+    print("     running 'read_fields' ...")
+
     fields, rho, btipsign = read_geqdsk(file_name, grid, poloidal=True)
     return fields, rho
-def read_plasma(user_input,grid,rho,plot_flag=False):
+
+def read_plasma(config,grid,rho,plot_flag=False):
+
+    print("     running 'read_plasma' ...")
 
     # Read CQL3D standard .nc file into dict:
-    nc_data = read_ncdf(user_input["plasma_file_name"])
+    nc_data = read_ncdf(config["plasma_file_name"])
 
     # Charge number of main impurity species:
-    impurity_charge = user_input["impurity_charge"]
+    impurity_charge = config["impurity_charge"]
 
     # Number of hydrogenic thermal species/isotopes
     nthermal = 1 # This appears to be set to 1 in the FIDASIM parameter list.
@@ -62,7 +79,7 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
     # ELECTRON TEMPERATURE:
     # =====================
     # Electron temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    te_nc = nc_data['energyz'][-1,:,1,:]
+    te_nc = nc_data['energyz'][-1,:,1,:]*2/3
 
     # Symmetrize it about the R axis:
     flipped_te_nc = np.flip(te_nc, axis=1)
@@ -71,7 +88,7 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
     # ION TEMPERATURE:
     # ==================
     # Ion temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    ti_nc = nc_data['energyz'][-1,:,0,:]
+    ti_nc = nc_data['energyz'][-1,:,0,:]*2/3
 
     # Symmetrize it about the R axis:
     flipped_ti_nc = np.flip(ti_nc, axis=1)
@@ -94,11 +111,11 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
     # Values outside LCFS:
     # These are used to define non-zero plasma parameters in the region between the LCFS and the vacuum chamber wall
     # In the future, a better treatment of this can be done using exponential decay functions.
-    dene_LCFS = user_input["dene_LCFS"]
-    te_LCFS = user_input["te_LCFS"]
-    ti_LCFS = user_input["ti_LCFS"]
-    zeff_LCFS = user_input["zeff_LCFS"]
-    rho_LCFS = user_input["rho_LCFS"]
+    dene_LCFS = config["dene_LCFS"]
+    te_LCFS = config["te_LCFS"]
+    ti_LCFS = config["ti_LCFS"]
+    zeff_LCFS = config["zeff_LCFS"]
+    rho_LCFS = config["rho_LCFS"]
 
     # Interpolate nc profiles into interpolation grid "grid":
     # Use "fill_value" option to prevent NaNs in regions outside the convex hull of the input data
@@ -138,7 +155,7 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
-    plasma = {"time":nc_data['time'][-1], "data_source":user_input["plasma_file_name"], "mask":mask,
+    plasma = {"time":nc_data['time'][-1], "data_source":config["plasma_file_name"], "mask":mask,
                 "deni":deni,"denimp":denimp,"species_mass":species_mass,
                 "nthermal":nthermal,"impurity_charge":impurity_charge,
                 "te":te, "ti":ti, "vr":vr, "vt":vt, "vz":vz,
@@ -153,7 +170,7 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
         plt.xlabel('R [cm]')
         plt.title('Electron density')
         fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(user_input["output_path"] + 'dene.png')
+        plt.savefig(config["output_path"] + 'dene.png')
 
         fig = plt.figure(6)
         plt.contourf(r2d, z2d, te * mask)
@@ -163,7 +180,7 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
         plt.xlabel('R [cm]')
         plt.title('Electron temperature [keV]')
         fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(user_input["output_path"] + 'te.png')
+        plt.savefig(config["output_path"] + 'te.png')
 
         fig = plt.figure(7)
         plt.contourf(r2d,z2d,ti*mask)
@@ -173,18 +190,21 @@ def read_plasma(user_input,grid,rho,plot_flag=False):
         plt.xlabel('R [cm]')
         plt.title('Ion temperature [keV]')
         fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(user_input["output_path"] + 'ti.png')
+        plt.savefig(config["output_path"] + 'ti.png')
 
     return plasma
-def read_f4d(user_input,grid,rho,plot_flag=False):
+
+def read_f4d(config,grid,rho,plot_flag=False):
 
     # Physical constants in SI units:
     # charge_electron_SI = 1.60217663E-19  # [C]
     # mass_proton_SI = 1.67262192E-27  # [Kg]
     # mass_electron_SI = 9.1093837E-31  # [Kg]
 
+    print("     running 'read_f4d' ...")
+
     # Read nc file into dict:
-    f4d_nc = read_ncdf(user_input['f4d_ion_file_name'])
+    f4d_nc = read_ncdf(config['f4d_ion_file_name'])
 
     # Get distribution function, dimensions: [theta,v, Z, R]
     fbm_nc = f4d_nc['f4d']
@@ -258,10 +278,10 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
     # byte_data = f4d_nc['mnemonic'].tobytes()
     # decoded_string = byte_data.decode('utf-8')
     # clean_string = decoded_string.strip('\x00').strip()
-    # tokens = user_input['f4d_ion_file_name'].split('/')
+    # tokens = config['f4d_ion_file_name'].split('/')
     # source_file_name = tokens[0] + '/' + tokens[1] + '/' +  clean_string + ".nc"
     # src_nc = read_ncdf(source_file_name)
-    src_nc = read_ncdf(user_input['plasma_file_name'])
+    src_nc = read_ncdf(config['plasma_file_name'])
     time = src_nc['time'][-1]
     mass_AMU = np.array([src_nc['fmass'][0]/(mass_proton_SI*1e3)])
 
@@ -280,7 +300,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
     energy = ee_nc[:,1]
 
     fbm_dict = {"type":1,"time":time,"nenergy":nenergy,"energy":energy,"npitch":npitch,
-              "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(user_input['f4d_ion_file_name'])}
+              "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(config['f4d_ion_file_name'])}
 
     if plot_flag:
         # Plot #1: input f4d in vpar and vper coordinates:
@@ -297,7 +317,10 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         iz = 60
         ir = 0
         data = fbm_nc[:, :, ir, iz]
-        log_data = np.where(data > 0, np.log10(data), np.nan)
+
+        log_data = np.full(data.shape, np.nan)  # Initialize log_data with NaNs
+        log_data[data > 0] = np.log10(data[data > 0])
+        #log_data = np.where(data > 0, np.log10(data), np.nan)
         contours = np.logspace(13, np.nanmax(log_data) * 1.1, 32)
         plt.contour(vvpar * vnc, vvper * vnc, data, colors='black', levels=contours)
         plt.contourf(vvpar * vnc, vvper * vnc, log_data, levels=np.log10(contours), cmap='viridis')
@@ -306,7 +329,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         plt.xlim([-0.01, 0.01])
         plt.ylim([0, 0.01])
         plt.title('Ion distribution function, R = 0, Z = 0')
-        plt.savefig(user_input['output_path'] + 'f4d_ion_vpar_vper.png')
+        plt.savefig(config['output_path'] + 'f4d_ion_vpar_vper.png')
 
         # Plot #2: Compare input and interpolated f4d:
         # ============================================
@@ -321,7 +344,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         ax1.contourf(ee_nc, pp_nc, data)
         ax1.set_xlim([0, enorm])
         ax1.set_xlabel('Energy [keV]')
-        ax1.set_ylabel('pitch $v_{\parallel}/v$')
+        ax1.set_ylabel(r'pitch $v_{\parallel}/v$')
         ax1.set_title('INPUT: Ion f4d, R = 0, Z = 0')
 
         # Output f4d:
@@ -334,7 +357,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         ax2.set_title('OUTPUT: Ion f4d, R = 0, Z = 0')
 
         # Save figure:
-        fig.savefig(user_input['output_path'] + 'f4d_ion_energy_pitch.png')
+        fig.savefig(config['output_path'] + 'f4d_ion_energy_pitch.png')
 
         # Plot #3: Compare ion density from integral:
         # ===========================================
@@ -364,7 +387,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         ax2.set_title('ne, from f4d file')
 
         # Save figure:
-        fig.savefig(user_input['output_path'] + 'density_f4d_comparison.png')
+        fig.savefig(config['output_path'] + 'density_f4d_comparison.png')
 
         # Plot #4: Directly compare Z profiles:
         # ===================================
@@ -392,7 +415,7 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         ax1.legend()
 
         # Save figure:
-        fig.savefig(user_input['output_path'] + 'density_zprof_f4d_comparison.png')
+        fig.savefig(config['output_path'] + 'density_zprof_f4d_comparison.png')
 
         # Plot #5: Directly compare R profiles:
         # ===================================
@@ -420,15 +443,18 @@ def read_f4d(user_input,grid,rho,plot_flag=False):
         ax1.legend()
 
         # Save figure:
-        fig.savefig(user_input['output_path'] + 'density_rprof_f4d_comparison.png')
+        fig.savefig(config['output_path'] + 'density_rprof_f4d_comparison.png')
 
     return fbm_dict
-def assemble_inputs(user_input, nbi):
+
+def assemble_inputs(config, nbi):
+
+    print("     running 'assemble_inputs' ...")
 
     # Extract paths:
-    cqlinput = user_input["cqlinput"]
-    nc_file_name = user_input["plasma_file_name"]
-    output_path = user_input["output_path"]
+    cqlinput = config["cqlinput"]
+    nc_file_name = config["plasma_file_name"]
+    output_path = config["output_path"]
 
     # Get directory for FIDASIM installation
     fida_dir = fs.utils.get_fidasim_dir()
@@ -464,20 +490,20 @@ def assemble_inputs(user_input, nbi):
     calc_cfpd = 0
     calc_res = 0
     calc_bes = 0
-    calc_dcx = user_input["calc_dcx"]
-    calc_halo = user_input["calc_halo"]
+    calc_dcx = config["calc_dcx"]
+    calc_halo = config["calc_halo"]
     calc_cold = 0
-    calc_birth = user_input["calc_birth"]
+    calc_birth = config["calc_birth"]
     calc_fida_wght = 0
     calc_npa_wght = 0
     calc_pfida = 0
     calc_pnpa = 0
 
     # Number of particles to track:
-    n_nbi = int(user_input["n_nbi"])
-    n_halo = int(user_input["n_halo"])
-    n_dcx = int(user_input["n_dcx"])
-    n_birth = int(user_input["n_birth"])
+    n_nbi = int(config["n_nbi"])
+    n_halo = int(config["n_halo"])
+    n_dcx = int(config["n_dcx"])
+    n_birth = int(config["n_birth"])
     n_fida = int(1e3)
     n_npa = int(1e3)
     n_pfida = int(1e3)
@@ -501,15 +527,15 @@ def assemble_inputs(user_input, nbi):
 
     # Define beam grid:
     basic_bgrid = {}
-    nx = user_input["beam_grid"]["nx"]
-    ny = user_input["beam_grid"]["ny"]
-    nz = user_input["beam_grid"]["nz"]
-    rstart = float(user_input["beam_grid"]["rstart"])
-    length = float(user_input["beam_grid"]["length"])
-    width = float(user_input["beam_grid"]["width"])
-    height = float(user_input["beam_grid"]["height"])
+    nx = config["beam_grid"]["nx"]
+    ny = config["beam_grid"]["ny"]
+    nz = config["beam_grid"]["nz"]
+    rstart = float(config["beam_grid"]["rstart"])
+    length = float(config["beam_grid"]["length"])
+    width = float(config["beam_grid"]["width"])
+    height = float(config["beam_grid"]["height"])
 
-    if (user_input["beam_grid"]["beam_aligned"]):
+    if (config["beam_grid"]["beam_aligned"]):
         # Beam-aligned beam grid:
         basic_bgrid = beam_grid(nbi, rstart=rstart, nx=nx, ny=ny, nz=nz, length=length, width=width, height=height)
     else:
@@ -532,18 +558,27 @@ def assemble_inputs(user_input, nbi):
     inputs = basic_inputs.copy()
     inputs.update(basic_bgrid)
 
+    try:
+        # Inputs related to non-thermal beam deposition, ion sources and sinks development:
+        inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
+    except KeyError:
+        print("KeyError: 'enable_nonthermal_calc' option not present in config")
+
     # Metadata on simulation run:
-    inputs["comment"] = user_input["comment"]
-    inputs["runid"] = user_input["runid"]
+    inputs["comment"] = config["comment"]
+    inputs["runid"] = config["runid"]
 
     return inputs
-def assemble_nbi_dict(user_input):
+
+def assemble_nbi_dict(config):
+
+    print("     running 'assemble_nbi_dict' ...")
 
     # Read contents of cqlinput namelist file:
     # Read in namelist:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nml = f90nml.read(user_input['cqlinput'])
+        nml = f90nml.read(config['cqlinput'])
 
     # Gather main variables from frsetup namelist:
     rpivot = nml['frsetup']['rpivot'][0]
@@ -630,47 +665,57 @@ def assemble_nbi_dict(user_input):
            "awidy":awidy, "awidz":awidz, "aoffy":aoffy, "aoffz":aoffz}
 
     return nbi
-def run_prefida(user_input, plot_flag):
+def create_fidasim_inputs_from_cql3dm(config, plot_flag):
+
+    print("running 'create_fidasim_inputs_from_cql3dm' ...")
 
     # Define interpolation grid:
-    rmin = user_input["rmin"]
-    rmax = user_input["rmax"]
-    nr = user_input["nr"]
-    zmin = user_input["zmin"]
-    zmax = user_input["zmax"]
-    nz = user_input["nr"]
+    rmin = config["rmin"]
+    rmax = config["rmax"]
+    nr = config["nr"]
+    zmin = config["zmin"]
+    zmax = config["zmax"]
+    nz = config["nr"]
     grid = rz_grid(rmin,rmax,nr,zmin,zmax,nz)
 
     # Compute equil dict:
     # =====================
-    file_name = user_input["equil_file_name"]
+    file_name = config["equil_file_name"]
     equil, rho = read_fields(file_name,grid)
 
     # Compute the plasma dict:
     # ========================
-    plasma = read_plasma(user_input,grid,rho,plot_flag=plot_flag)
+    plasma = read_plasma(config,grid,rho,plot_flag=plot_flag)
 
     # Compute fbm dict for ions:
     # =========================
-    fbm = read_f4d(user_input,grid,rho,plot_flag=plot_flag)
+    # How to I enable reading both ion and electron f?
+    # What about for multiple ion species?
+    fbm = read_f4d(config,grid,rho,plot_flag=plot_flag)
 
     # Compute nbi dict from cqlinput:
     # ===============================
-    nbi = assemble_nbi_dict(user_input)
+    nbi = assemble_nbi_dict(config)
 
     # Compute inputs dict:
     # ===================
-    inputs = assemble_inputs(user_input, nbi)
+    inputs = assemble_inputs(config, nbi)
 
     # Produce input files for FIDASIM:
     # ================================
     fs.prefida(inputs, grid, nbi, plasma, equil, fbm)
 
+    # Modify the *.dat output file produced by prefida and add new variables:
+    # ======================================================================
+    ps = os.path.sep
+    input_file = inputs['result_dir'].rstrip(ps) + ps + inputs['runid'] + '_inputs.dat'
+    write_fidasim_input_namelist(input_file,inputs)
+
     # Plot results:
     # =============
-    output_path = user_input["output_path"]
-
     if (plot_flag):
+        output_path = config["output_path"]
+
         fig = plt.figure(1)
         plt.contourf(grid["r2d"],grid["z2d"],equil["bz"].T)
         plt.colorbar
@@ -706,70 +751,218 @@ def run_prefida(user_input, plot_flag):
         plt.contour(grid['r2d'], grid['z2d'], rho,levels=[1.0, 1.2, 1.3, 1.4])
         fig.set_size_inches(4, 6)  # Width, Height in inches
 
-def main():
-    # Initialize user input dictionary:
-    user_input = {}
+def read_preprocessor_config(file_name):
 
-    # Metadata for run:
-    user_input["runid"] = "WHAM_example_debug"
-    user_input["comment"] = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
+    # Read contents of the preprocessor configuration namelist file:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        nml = f90nml.read(file_name)
+
+    # Initialize user input dictionary:
+    config = {}
+
+    # Metadata for fidasim run:
+    config["runid"] = nml['fidasim_run_info']['runid']
+    config["comment"] = nml['fidasim_run_info']['comment']
 
     # R-Z Interpolation grid:
-    user_input["rmin"] = 0.01
-    user_input["rmax"] = 60
-    user_input["nr"] = 100
-    user_input["zmin"] = -200
-    user_input["zmax"] = +200
-    user_input["nz"] = 100
+    sub_nml = nml['rz_interpolation_grid']
+    config["rmin"] = sub_nml['rmin']
+    config["rmax"] = sub_nml['rmax']
+    config["nr"] = sub_nml['nr']
+    config["zmin"] = sub_nml['zmin']
+    config["zmax"] = sub_nml['zmax']
+    config["nz"] = sub_nml['nz']
 
     # CQL3DM related files:
     # (Assume we only have a single ion species)
-    user_input["equil_file_name"] = "./Step_1_input/eqdsk_wham_expander"
-    user_input["cqlinput"] = "./Step_1_input/cqlinput"
-    user_input["plasma_file_name"] = "./Step_1_input/WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
-    user_input["f4d_ion_file_name"] = "./Step_1_input/WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
-    user_input["f4d_electron_file_name"] = "./Step_1_input/WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
+    sub_nml = nml['cql3d_input_files']
+    input_dir = sub_nml['input_dir']
+    config["equil_file_name"] = input_dir + sub_nml['equil_file_name']
+    config["cqlinput"] = input_dir + sub_nml['cqlinput']
+    config["plasma_file_name"] = input_dir + sub_nml['plasma_file_name']
+    config["f4d_ion_file_name"] = input_dir + sub_nml['f4d_ion_file_name']
+    config["f4d_electron_file_name"] = input_dir + sub_nml['f4d_electron_file_name']
 
     # Plasma profiles parameters:
-    user_input["impurity_charge"] = 6
-    user_input["rho_LCFS"] = 1.0
-    user_input["dene_LCFS"] = 1e9
-    user_input["te_LCFS"] = 0.005
-    user_input["ti_LCFS"] = 0.005
-    user_input["zeff_LCFS"] = 1.0
+    sub_nml = nml['plasma_profiles_params']
+    config["impurity_charge"] = sub_nml['impurity_charge']
+    config["rho_LCFS"] = sub_nml['rho_LCFS']
+    config["dene_LCFS"] = sub_nml['dene_LCFS']
+    config["te_LCFS"] = sub_nml['te_LCFS']
+    config["ti_LCFS"] = sub_nml['ti_LCFS']
+    config["zeff_LCFS"] = sub_nml['zeff_LCFS']
 
     # Define path to output directory:
     # (This is where you want the FIDASIM HDF5 files to be written to)
-    user_input['output_path'] = "./Step_1_output_debug/"
+    config['output_path'] = nml['preprocessor_output']['output_dir']
 
     # Beam physics switches:
-    user_input['calc_birth'] = 1
-    user_input['calc_dcx'] = 1
-    user_input['calc_halo'] = 1
+    sub_nml = nml['beam_physics_switches']
+    try:
+        config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
+    except KeyError:
+        print("KeyError: 'enable_nonthermal_calc' option not present in sub_nml")
+    config['calc_birth'] = sub_nml['calc_birth']
+    config['calc_dcx'] = sub_nml['calc_dcx']
+    config['calc_halo'] = sub_nml['calc_halo']
 
     # Define number of Monte-Carlo particles:
-    user_input['n_nbi'] = 1e3
-    user_input['n_birth'] = 1e3
-    user_input['n_dcx'] = 1e5
-    user_input['n_halo'] = 1e3
+    sub_nml = nml['monte_carlo_particles']
+    config['n_nbi'] = sub_nml['n_nbi']
+    config['n_birth'] = sub_nml['n_birth']
+    config['n_dcx'] = sub_nml['n_dcx']
+    config['n_halo'] = sub_nml['n_halo']
 
     # Define beam grid parameters:
-    user_input["beam_grid"] = {}
-    user_input["beam_grid"]["beam_aligned"] = False # Option between machine-aligned or beam-aligned
-    user_input["beam_grid"]["nx"] = 70
-    user_input["beam_grid"]["ny"] = 50
-    user_input["beam_grid"]["nz"] = 50
-    user_input["beam_grid"]["rstart"] = 60 # Only works for "beam_aligned" == True
-    user_input["beam_grid"]["length"] = 150
-    user_input["beam_grid"]["width"] = 80
-    user_input["beam_grid"]["height"] = 130
+    sub_nml = nml['beam_grid']
+    config["beam_grid"] = {}
+    config["beam_grid"]["beam_aligned"] = sub_nml['beam_aligned']  # Option between machine-aligned or beam-aligned
+    config["beam_grid"]["nx"] = sub_nml['nx']
+    config["beam_grid"]["ny"] = sub_nml['ny']
+    config["beam_grid"]["nz"] = sub_nml['nz']
+    config["beam_grid"]["rstart"] = sub_nml['rstart']  # Only works for "beam_aligned" == True
+    config["beam_grid"]["length"] = sub_nml['length']
+    config["beam_grid"]["width"] = sub_nml['width']
+    config["beam_grid"]["height"] = sub_nml['height']
 
-    # Create FIDASIM input files using prefida function:
-    plot_flag = True
-    run_prefida(user_input,plot_flag)
-    print("End of script")
+    return config
+
+def write_fidasim_input_namelist(filename, inputs):
+    """
+    # JFCM 2024_08_15:
+    # This function is based on FIDASIM's write_namelist function in PREFIDA
+    # It has been modified to produce the namelist required for our purposes
+    #
+    #+#write_namelist
+    #+Writes namelist file
+    #+***
+    #+##Input Arguments
+    #+     **filename**: Name of the namelist file
+    #+
+    #+     **inputs**: Input dictionary
+    #+
+    #+##Example Usage
+    #+```python
+    #+>>> write_namelist(filename, inputs)
+    #+```
+    """
+    fs.utils.info("Writing namelist file...")
+
+    fidasim_version = fs.utils.get_version(fs.utils.get_fidasim_dir())
+
+    with open(filename, "w") as f:
+        f.write("!! Created: {}\n".format(datetime.datetime.now()))
+        f.write("!! FIDASIM version: {}\n".format(fidasim_version))
+        f.write("!! Comment: {}\n".format(inputs['comment']))
+        f.write("&fidasim_inputs\n\n")
+
+        f.write("!! Shot Info\n")
+        f.write("shot = {:d}    !! Shot Number\n".format(inputs['shot']))
+        f.write("time = {:f}    !! Time [s]\n".format(inputs['time']))
+        f.write("runid = '{}'   !! runID\n".format(inputs['runid']))
+        f.write("result_dir = '{}'    !! Result Directory\n\n".format(inputs['result_dir']))
+
+        f.write("!! Input Files\n")
+        f.write("tables_file = '{}'   !! Atomic Tables File\n".format(inputs['tables_file']))
+        f.write("equilibrium_file = '" + inputs['equilibrium_file'] + "'    !! File containing plasma parameters and fields\n")
+        f.write("geometry_file = '" + inputs['geometry_file'] + "'    !! File containing NBI and diagnostic geometry\n")
+        f.write("distribution_file = '" + inputs['distribution_file'] + "'    !! File containing fast-ion distribution\n\n")
+
+        f.write("!! Simulation Switches\n")
+        f.write("calc_bes = {:d}    !! Calculate NBI Spectra\n".format(inputs['calc_bes']))
+        f.write("calc_dcx = {:d}    !! Calculate Direct CX Spectra\n".format(inputs['calc_dcx']))
+        f.write("calc_halo = {:d}    !! Calculate Halo Spectra\n".format(inputs['calc_halo']))
+        f.write("calc_cold = {:d}    !! Calculate Cold D-alpha Spectra\n".format(inputs['calc_cold']))
+        f.write("calc_brems = {:d}    !! Calculate Bremsstrahlung\n".format(inputs['calc_brems']))
+        f.write("calc_fida = {:d}    !! Calculate FIDA Spectra\n".format(inputs['calc_fida']))
+        f.write("calc_npa = {:d}   !! Calculate NPA\n".format(inputs['calc_npa']))
+        f.write("calc_pfida = {:d}    !! Calculate Passive FIDA Spectra\n".format(inputs['calc_pfida']))
+        f.write("calc_pnpa = {:d}   !! Calculate Passive NPA\n".format(inputs['calc_pnpa']))
+        f.write("calc_neutron = {:d}   !! Calculate B-T Neutron Rate\n".format(inputs['calc_neutron']))
+        f.write("calc_cfpd = {:d}   !! Calculate B-T CFPD Energy Resolved Count Rate\n".format(inputs['calc_cfpd']))
+        f.write("calc_birth = {:d}    !! Calculate Birth Profile\n".format(inputs['calc_birth']))
+        f.write("calc_fida_wght = {:d}    !! Calculate FIDA weights\n".format(inputs['calc_fida_wght']))
+        f.write("calc_npa_wght = {:d}    !! Calculate NPA weights\n".format(inputs['calc_npa_wght']))
+        f.write("calc_res = {:d}    !! Calculate spatial resolution\n".format(inputs['calc_res']))
+
+        if "enable_nonthermal_calc" in inputs:
+            # Add new inputs when rurnning non-thermal calculations:
+            f.write("\n!! Non-thermal beam deposition switches\n")
+            f.write("enable_nonthermal_calc = {:d} !! Enable the use of f4d to calculate beam deposition\n".format(inputs['enable_nonthermal_calc']))
+
+        f.write("\n!! Advanced Settings\n")
+        f.write("seed = {:d}    !! RNG Seed. If seed is negative a random seed is used\n".format(inputs['seed']))
+        f.write("flr = {:d}    !! Turn on Finite Larmor Radius corrections\n".format(inputs['flr']))
+        f.write("load_neutrals = {:d}    !! Load neutrals from neutrals file\n".format(inputs['load_neutrals']))
+        f.write("output_neutral_reservoir = {:d}    !! Output neutral reservoir to neutrals file\n".format(inputs['output_neutral_reservoir']))
+        f.write("neutrals_file = '" + inputs['neutrals_file'] + "'    !! File containing the neutral density\n")
+        f.write("stark_components = {:d}    !! Output stark components\n".format(inputs['stark_components']))
+        f.write("verbose = {:d}    !! Verbose\n\n".format(inputs['verbose']))
+
+        f.write("!! Monte Carlo Settings\n")
+        f.write("n_fida = {:d}    !! Number of FIDA mc particles\n".format(inputs['n_fida']))
+        f.write("n_npa = {:d}    !! Number of NPA mc particles\n".format(inputs['n_npa']))
+        f.write("n_pfida = {:d}    !! Number of Passive FIDA mc particles\n".format(inputs['n_pfida']))
+        f.write("n_pnpa = {:d}    !! Number of Passive NPA mc particles\n".format(inputs['n_pnpa']))
+        f.write("n_nbi = {:d}    !! Number of NBI mc particles\n".format(inputs['n_nbi']))
+        f.write("n_halo = {:d}    !! Number of HALO mc particles\n".format(inputs['n_halo']))
+        f.write("n_dcx = {:d}     !! Number of DCX mc particles\n".format(inputs['n_dcx']))
+        f.write("n_birth = {:d}    !! Number of BIRTH mc particles\n\n".format(inputs['n_birth']))
+
+        f.write("!! Neutral Beam Settings\n")
+        f.write("ab = {:f}     !! Beam Species mass [amu]\n".format(inputs['ab']))
+        f.write("pinj = {:f}     !! Beam Power [MW]\n".format(inputs['pinj']))
+        f.write("einj = {:f}     !! Beam Energy [keV]\n".format(inputs['einj']))
+        f.write("current_fractions(1) = {:f} !! Current Fractions (Full component)\n".format(inputs['current_fractions'][0]))
+        f.write("current_fractions(2) = {:f} !! Current Fractions (Half component)\n".format(inputs['current_fractions'][1]))
+        f.write("current_fractions(3) = {:f} !! Current Fractions (Third component)\n\n".format(inputs['current_fractions'][2]))
+
+        f.write("!! Beam Grid Settings\n")
+        f.write("nx = {:d}    !! Number of cells in X direction (Into Plasma)\n".format(inputs['nx']))
+        f.write("ny = {:d}    !! Number of cells in Y direction\n".format(inputs['ny']))
+        f.write("nz = {:d}    !! Number of cells in Z direction\n".format(inputs['nz']))
+        f.write("xmin = {:f}     !! Minimum X value [cm]\n".format(inputs['xmin']))
+        f.write("xmax = {:f}     !! Maximum X value [cm]\n".format(inputs['xmax']))
+        f.write("ymin = {:f}     !! Minimum Y value [cm]\n".format(inputs['ymin']))
+        f.write("ymax = {:f}     !! Maximum Y value [cm]\n".format(inputs['ymax']))
+        f.write("zmin = {:f}     !! Minimum Z value [cm]\n".format(inputs['zmin']))
+        f.write("zmax = {:f}     !! Maximum Z value [cm]\n\n".format(inputs['zmax']))
+
+        f.write("!! Tait-Bryan Angles for z-y`-x`` rotation\n")
+        f.write("alpha = {:f}     !! Rotation about z-axis [rad]\n".format(inputs['alpha']))
+        f.write("beta  = {:f}     !! Rotation about y`-axis [rad]\n".format(inputs['beta']))
+        f.write("gamma = {:f}     !! Rotation about x``-axis [rad]\n\n".format(inputs['gamma']))
+
+        f.write("!! Beam Grid origin in machine coordinates (cartesian)\n")
+        f.write("origin(1) = {:f}     !! U value [cm]\n".format(inputs['origin'][0]))
+        f.write("origin(2) = {:f}     !! V value [cm]\n".format(inputs['origin'][1]))
+        f.write("origin(3) = {:f}     !! W value [cm]\n\n".format(inputs['origin'][2]))
+
+        f.write("!! Wavelength Grid Settings\n")
+        f.write("nlambda = {:d}    !! Number of Wavelengths\n".format(inputs['nlambda']))
+        f.write("lambdamin = {:f}    !! Minimum Wavelength [nm]\n".format(inputs['lambdamin']))
+        f.write("lambdamax = {:f}    !! Maximum Wavelength [nm]\n\n".format(inputs['lambdamax']))
+
+        f.write("!! Weight Function Settings\n")
+        f.write("ne_wght = {:d}    !! Number of Energies for Weights\n".format(inputs['ne_wght']))
+        f.write("np_wght = {:d}    !! Number of Pitches for Weights\n".format(inputs['np_wght']))
+        f.write("nphi_wght = {:d}    !! Number of Gyro-angles for Weights\n".format(inputs['nphi_wght']))
+        f.write("emax_wght = {:f}    !! Maximum Energy for Weights [keV]\n".format(inputs['emax_wght']))
+        f.write("nlambda_wght = {:d}    !! Number of Wavelengths for Weights \n".format(inputs['nlambda_wght']))
+        f.write("lambdamin_wght = {:f}    !! Minimum Wavelength for Weights [nm]\n".format(inputs['lambdamin_wght']))
+        f.write("lambdamax_wght = {:f}    !! Maximum Wavelength for Weights [nm]\n\n".format(inputs['lambdamax_wght']))
+
+        f.write("!! Adaptive Time Step Settings\n")
+        f.write("adaptive = {:d}    !! Adaptive switch, 0:split off, 1:dene, 2:denn, 3:denf, 4:deni, 5:denimp, 6:te, 7:ti\n".format(inputs['adaptive']))
+        f.write("split_tol = {:f}    !! Tolerance for change in plasma parameter, number of cell splits is proportional to 1/split_tol\n".format(inputs['split_tol']))
+        f.write("max_cell_splits = {:d}    !! Maximum number of times a cell can be split\n\n".format(inputs['max_cell_splits']))
+        f.write("/\n\n")
+
+    fs.utils.success("Namelist file created: {}\n".format(filename))
+
+def main():
+    print("Add some code")
 
 if __name__=='__main__':
-
-    # Run main function:
     main()

@@ -10,5 +10,17 @@ config = pp.read_preprocessor_config(file_name)
 
 # Create FIDASIM input files using PREFIDA:
 plot_flag = True
-pp.create_fidasim_inputs_from_cql3dm(config, plot_flag)
+include_f4d = False
+pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d)
+
 print("End of script")
+
+# Notes:
+# ==================
+# We have added "include_f4d" to allow skipping the interpolation of the distribution function.
+# This has been done because at present this is the step that takes the longest to compute in the preprocessing
+# To improve this we can (1) make it into a fotran subroutine or (2) find a more efficient way to perform the interpolation
+
+# Future changes:
+# Remove the plotting scripts from the main process and create a function that reads the FIDASIM input files and plots results
+# Consider performing the preprocessing all in fortran

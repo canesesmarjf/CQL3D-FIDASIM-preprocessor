@@ -1,4 +1,5 @@
 import sys
+import time
 import os
 import datetime
 import warnings
@@ -36,7 +37,6 @@ def set_fidasim_dir(path):
 def read_fields(file_name,grid):
 
     print("     running 'read_fields' ...")
-
     fields, rho, btipsign = read_geqdsk(file_name, grid, poloidal=True)
     return fields, rho
 
@@ -194,7 +194,7 @@ def read_plasma(config,grid,rho,plot_flag=False):
 
     return plasma
 
-def read_f4d(config,grid,rho,plot_flag=False):
+def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
 
     # Physical constants in SI units:
     # charge_electron_SI = 1.60217663E-19  # [C]
@@ -202,6 +202,7 @@ def read_f4d(config,grid,rho,plot_flag=False):
     # mass_electron_SI = 9.1093837E-31  # [Kg]
 
     print("     running 'read_f4d' ...")
+    start_time = time.time()
 
     # Read nc file into dict:
     f4d_nc = read_ncdf(config['f4d_ion_file_name'])
@@ -228,61 +229,74 @@ def read_f4d(config,grid,rho,plot_flag=False):
 
     # Interpolate f4d into interpolation grids:
     # =========================================
-    # Reshape fbm_nc to bring the R and Z dimensions to the front: [R,Z,E,P]
-    fbm_reshaped = fbm_nc.transpose(2, 3, 0, 1)
-
-    # Combine E and P coordinates into a single dimension: [R,Z,E*P]
-    fbm_reshaped = fbm_reshaped.reshape(10, 121, -1)
-
-    # Create the interpolator:
-    input_points = (r_nc, z_nc)
-    interpolator = RegularGridInterpolator(
-        input_points,
-        fbm_reshaped,
-        method='linear',
-        bounds_error=False,
-        fill_value=None
-    )
 
     # Interpolation grids:
     r_grid = grid['r2d']
     z_grid = grid['z2d']
 
-    # Create query points from interpolation grid, has dimensions [Rg*Zg,2]
-    query_points = np.array([r_grid.flatten(),z_grid.flatten()]).T
+    # Initialize fbm array:
+    num_R = r_grid.shape[0]
+    num_Z = z_grid.shape[1]
+    num_E = fbm_nc.shape[0]
+    num_P = fbm_nc.shape[1]
+    fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 
-    # Perform interpolation, has dimensions [Rg*Zg,E*P]
-    interpolated_values = interpolator(query_points)
+    if interpolate_f4d == True:
+        print("         Interpolating f4d ...")
 
-    # Reshape interpolated values back into the grid shape: [Rg,Zg,E,P]
-    fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], fbm_nc.shape[0], fbm_nc.shape[1])
+        # Reshape fbm_nc to bring the R and Z dimensions to the front: [R,Z,E,P]
+        fbm_reshaped = fbm_nc.transpose(2, 3, 0, 1)
+
+        # Combine E and P coordinates into a single dimension: [R,Z,E*P]
+        fbm_reshaped = fbm_reshaped.reshape(10, 121, -1)
+
+        # Create the interpolator:
+        input_points = (r_nc, z_nc)
+        interpolator = RegularGridInterpolator(
+            input_points,
+            fbm_reshaped,
+            method='linear',
+            bounds_error=False,
+            fill_value=None
+        )
+
+        # Create query points from interpolation grid, has dimensions [Rg*Zg,2]
+        query_points = np.array([r_grid.flatten(),z_grid.flatten()]).T
+
+        # Perform interpolation, has dimensions [Rg*Zg,E*P]
+        interpolated_values = interpolator(query_points)
+
+        # Reshape interpolated values back into the grid shape: [Rg,Zg,E,P]
+        fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], fbm_nc.shape[0], fbm_nc.shape[1])
+    else:
+        print("         skipping interpolating f4d ...")
 
     # Reorder dimensions back to original [E,P,Rg,Zg]
     fbm_grid = fbm_grid.transpose(2, 3, 0, 1)
 
     # Apply mask to fbm_grid:
-    mask_reshaped = mask[np.newaxis,np.newaxis,:,:]
+    mask_reshaped = mask[np.newaxis, np.newaxis, :, :]
     fbm_grid *= mask_reshaped
 
     # Calculating fbm density:
     # =========================
+
+    # Initialize fbm density:
     denf = np.zeros(z_grid.shape)
 
-    # Integrate over velocity (v) and pitch (v):
-    p = np.cos(t_nc)
-    v = v_nc
-    int_over_v = np.trapz(fbm_grid * v[:, np.newaxis, np.newaxis, np.newaxis] ** 2, x=v, axis=0)
-    denf = -2 * np.pi * np.trapz(int_over_v, x=p, axis=0)
+    if (interpolate_f4d == True):
+        print("         Integrating f4d ...")
+        # Integrate over velocity (v) and pitch (v):
+        p = np.cos(t_nc)
+        v = v_nc
+        int_over_v = np.trapz(fbm_grid * v[:, np.newaxis, np.newaxis, np.newaxis] ** 2, x=v, axis=0)
+        denf = -2 * np.pi * np.trapz(int_over_v, x=p, axis=0)
+    else:
+        print("         Skipping integrating f4d ...")
 
     # Get time stamp and mass for this dataset:
-    # byte_data = f4d_nc['mnemonic'].tobytes()
-    # decoded_string = byte_data.decode('utf-8')
-    # clean_string = decoded_string.strip('\x00').strip()
-    # tokens = config['f4d_ion_file_name'].split('/')
-    # source_file_name = tokens[0] + '/' + tokens[1] + '/' +  clean_string + ".nc"
-    # src_nc = read_ncdf(source_file_name)
     src_nc = read_ncdf(config['plasma_file_name'])
-    time = src_nc['time'][-1]
+    time_stamp = src_nc['time'][-1]
     mass_AMU = np.array([src_nc['fmass'][0]/(mass_proton_SI*1e3)])
 
     # Grids for E and pitch coordinates (This is what FIDASIM requires)
@@ -299,7 +313,7 @@ def read_f4d(config,grid,rho,plot_flag=False):
     pitch = pp_nc[0,:]
     energy = ee_nc[:,1]
 
-    fbm_dict = {"type":1,"time":time,"nenergy":nenergy,"energy":energy,"npitch":npitch,
+    fbm_dict = {"type":1,"time":time_stamp,"nenergy":nenergy,"energy":energy,"npitch":npitch,
               "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(config['f4d_ion_file_name'])}
 
     if plot_flag:
@@ -445,6 +459,10 @@ def read_f4d(config,grid,rho,plot_flag=False):
         # Save figure:
         fig.savefig(config['output_path'] + 'density_rprof_f4d_comparison.png')
 
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"            Execution time: {execution_time} seconds")
+
     return fbm_dict
 
 def assemble_inputs(config, nbi):
@@ -477,7 +495,7 @@ def assemble_inputs(config, nbi):
 
     # Read standard cql3d output nc file:
     nc = read_ncdf(nc_file_name)
-    time = nc['time'][-1]
+    time_stamp = nc['time'][-1]
 
     # Set a seed to use for random number generator:
     seed = 1610735994
@@ -509,7 +527,7 @@ def assemble_inputs(config, nbi):
     n_pfida = int(1e3)
     n_pnpa = int(1e3)
 
-    basic_inputs = {"seed":seed, "device":"test", "shot":1, "time":time,
+    basic_inputs = {"seed":seed, "device":"test", "shot":1, "time":time_stamp,
                     "einj":einj, "pinj":pinj, "current_fractions":current_fractions,
                     "ab":ab,
                     "lambdamin":647e0, "lambdamax":667e0, "nlambda":2000,
@@ -657,7 +675,6 @@ def assemble_nbi_dict(config):
     elif ashape_nml == "s-circ":
         ashape = 2
 
-
     nbi = {"name":"test_beam","shape":1,"data_source":'run_tests:test_beam',
            "src":uvw_src, "axis":uvw_axis, "widy":widy, "widz":widz,
            "divy":divy, "divz":divz, "focy":focy, "focz":focz,
@@ -665,7 +682,7 @@ def assemble_nbi_dict(config):
            "awidy":awidy, "awidz":awidz, "aoffy":aoffy, "aoffz":aoffz}
 
     return nbi
-def create_fidasim_inputs_from_cql3dm(config, plot_flag):
+def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d):
 
     print("running 'create_fidasim_inputs_from_cql3dm' ...")
 
@@ -691,7 +708,11 @@ def create_fidasim_inputs_from_cql3dm(config, plot_flag):
     # =========================
     # How to I enable reading both ion and electron f?
     # What about for multiple ion species?
-    fbm = read_f4d(config,grid,rho,plot_flag=plot_flag)
+
+    if include_f4d == True:
+        fbm = read_f4d(config, grid, rho, plot_flag=plot_flag, interpolate_f4d=True)
+    else:
+        fbm = read_f4d(config, grid, rho, plot_flag=plot_flag, interpolate_f4d=False)
 
     # Compute nbi dict from cqlinput:
     # ===============================
@@ -703,7 +724,12 @@ def create_fidasim_inputs_from_cql3dm(config, plot_flag):
 
     # Produce input files for FIDASIM:
     # ================================
+    print("     running 'prefida' ...")
+    start_time = time.time()
     fs.prefida(inputs, grid, nbi, plasma, equil, fbm)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f" PREFIDA execution time: {execution_time} seconds")
 
     # Modify the *.dat output file produced by prefida and add new variables:
     # ======================================================================

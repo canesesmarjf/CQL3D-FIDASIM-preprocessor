@@ -9,19 +9,19 @@
 
 &cql3d_input_files
 
-  ! input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
-  ! plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
-  ! f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
-  ! f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
-  ! equil_file_name = "eqdsk_wham_expander"
-  ! cqlinput = "cqlinput"
-
-  input_dir = "./Step_1_input/"
-  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
-  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
-  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
+  input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
+  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
+  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
+  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
   equil_file_name = "eqdsk_wham_expander"
   cqlinput = "cqlinput"
+
+  !input_dir = "./Step_1_input/"
+  !plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
+  !f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
+  !f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
+  !equil_file_name = "eqdsk_wham_expander"
+  !cqlinput = "cqlinput"
 /
 
 &rz_interpolation_grid
@@ -44,16 +44,17 @@
 
 &beam_physics_switches
   enable_nonthermal_calc = 1
+  calc_sink = 1
   calc_birth = 1
-  calc_dcx = 1
-  calc_halo = 1
+  calc_dcx = 0
+  calc_halo = 0
 /
 
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
   n_nbi = 5e4
   n_birth = 5e4
-  n_dcx = 5e4
+  n_dcx = 50e4
   n_halo = 5e4
 /
 

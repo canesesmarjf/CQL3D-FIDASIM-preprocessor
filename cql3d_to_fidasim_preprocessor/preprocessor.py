@@ -328,7 +328,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         plt.figure()
         clight = 299792458 * 100  # [cm/s]
         vnc = vnorm / clight
-        iz = 60
+        iz = np.int64(np.round(fbm_nc.shape[3]/2))
         ir = 0
         data = fbm_nc[:, :, ir, iz]
 
@@ -353,7 +353,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
 
         # Input f4d:
         ir = 0
-        iz = 50
+        iz = np.int64(np.round(fbm_grid.shape[3]/2))
         data = fbm_grid[:, :, ir, iz]
         ax1.contourf(ee_nc, pp_nc, data)
         ax1.set_xlim([0, enorm])
@@ -363,7 +363,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
 
         # Output f4d:
         ir = 0
-        iz = 60
+        iz = np.int64(np.round(fbm_nc.shape[3]/2))
         data = fbm_nc[:,:,ir,iz]
         ax2.contourf(ee_nc,pp_nc,data)
         ax2.set_xlim([0,enorm])
@@ -438,7 +438,8 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
         plt.subplots_adjust(wspace=0.5)  # Adjust the width space between subplots
 
-        ax1.plot(r_grid[:, 50], denf[:,50], color='red', lw=4, label='f4d')
+        iz = np.int64(np.round(denf.shape[1]/2))
+        ax1.plot(r_grid[:, iz], denf[:,iz], color='red', lw=4, label='f4d')
         ax1.plot(r_src[:, 0], dene_src[:,0], color='black', lw=2, label='src')
         ax1.set_xlim([0, 15])
         ax1.set_ylabel("density [cm^{-3}]")
@@ -447,7 +448,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         ax1.set_title('log scale: R profile')
         ax1.legend()
 
-        ax2.plot(r_grid[:, 50], denf[:,50], color='red', lw=4, label='f4d')
+        ax2.plot(r_grid[:, iz], denf[:,iz], color='red', lw=4, label='f4d')
         ax2.plot(r_src[:, 0], dene_src[:,0], color='black', lw=2, label='src')
         ax2.set_xlim([0, 15])
         ax2.set_ylabel("density [cm^{-3}]")
@@ -576,11 +577,11 @@ def assemble_inputs(config, nbi):
     inputs = basic_inputs.copy()
     inputs.update(basic_bgrid)
 
-    try:
-        # Inputs related to non-thermal beam deposition, ion sources and sinks development:
+    # Inputs related to non-thermal beam deposition, ion sources and sinks development:
+    if "enable_nonthermal_calc" in config:
         inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
-    except KeyError:
-        print("KeyError: 'enable_nonthermal_calc' option not present in config")
+    if "calc_sink" in config:
+        inputs["calc_sink"] = config["calc_sink"]
 
     # Metadata on simulation run:
     inputs["comment"] = config["comment"]
@@ -825,10 +826,11 @@ def read_preprocessor_config(file_name):
 
     # Beam physics switches:
     sub_nml = nml['beam_physics_switches']
-    try:
+    if "enable_nonthermal_calc" in sub_nml:
         config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
-    except KeyError:
-        print("KeyError: 'enable_nonthermal_calc' option not present in sub_nml")
+    if "calc_sink" in sub_nml:
+        config['calc_sink'] = sub_nml['calc_sink']
+
     config['calc_birth'] = sub_nml['calc_birth']
     config['calc_dcx'] = sub_nml['calc_dcx']
     config['calc_halo'] = sub_nml['calc_halo']
@@ -913,9 +915,11 @@ def write_fidasim_input_namelist(filename, inputs):
         f.write("calc_res = {:d}    !! Calculate spatial resolution\n".format(inputs['calc_res']))
 
         if "enable_nonthermal_calc" in inputs:
-            # Add new inputs when rurnning non-thermal calculations:
+            # Add new inputs when running non-thermal calculations:
             f.write("\n!! Non-thermal beam deposition switches\n")
             f.write("enable_nonthermal_calc = {:d} !! Enable the use of f4d to calculate beam deposition\n".format(inputs['enable_nonthermal_calc']))
+        if "calc_sink" in inputs:
+            f.write("calc_sink = {:d} !! Calculate ion sink process\n".format(inputs['calc_sink']))
 
         f.write("\n!! Advanced Settings\n")
         f.write("seed = {:d}    !! RNG Seed. If seed is negative a random seed is used\n".format(inputs['seed']))

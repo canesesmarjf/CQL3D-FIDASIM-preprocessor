@@ -69,8 +69,15 @@ def read_plasma(config,grid,rho,plot_flag=False):
 
     # ELECTRON DENSITY:
     # ==================
+    # Find the time index of the latest valid dataset:
+    threshold = 1e20
+    valid_indices = np.where(nc_data['densz1'][:, :, :, 1] < threshold)[0]  # Check tdim values
+    valid_idx = valid_indices[-1]  # Last valid index
+    print("The last valid index is: " + str(valid_idx))
+
     # Electron density profile from nc file, dimensions [tdim, r0dim, zdim, species]
-    dene_nc = nc_data['densz1'][-1,:,:,1]
+    dene_nc = nc_data['densz1'][valid_idx, :, :, 1]  # Selects the appropriate slice
+    # dene_nc = nc_data['densz1'][-1,:,:,1]
 
     # Symmetrize it about the R axis:
     flipped_dene_nc = np.flip(dene_nc, axis=1)
@@ -79,7 +86,8 @@ def read_plasma(config,grid,rho,plot_flag=False):
     # ELECTRON TEMPERATURE:
     # =====================
     # Electron temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    te_nc = nc_data['energyz'][-1,:,1,:]*2/3
+    te_nc = nc_data['energyz'][valid_idx,:,1,:]*2/3
+    # te_nc = nc_data['energyz'][-1,:,1,:]*2/3
 
     # Symmetrize it about the R axis:
     flipped_te_nc = np.flip(te_nc, axis=1)
@@ -88,7 +96,8 @@ def read_plasma(config,grid,rho,plot_flag=False):
     # ION TEMPERATURE:
     # ==================
     # Ion temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    ti_nc = nc_data['energyz'][-1,:,0,:]*2/3
+    ti_nc = nc_data['energyz'][valid_idx,:,0,:]*2/3
+    # ti_nc = nc_data['energyz'][-1,:,0,:]*2/3
 
     # Symmetrize it about the R axis:
     flipped_ti_nc = np.flip(ti_nc, axis=1)
@@ -377,9 +386,15 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         # ===========================================
 
         # Get density from source file:
+
+        # Find the time index of the latest valid dataset:
+        threshold = 1e20
+        valid_indices = np.where(src_nc['densz1'][:, :, :, 1] < threshold)[0]  # Check tdim values
+        valid_idx = valid_indices[-1]  # Last valid index
+
         r_src = src_nc['solrz']
         z_src = src_nc['solzz']
-        dene_src = src_nc['densz1'][-1,:,:,0]
+        dene_src = src_nc['densz1'][valid_idx,:,:,0]
 
         # Create figure object:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))

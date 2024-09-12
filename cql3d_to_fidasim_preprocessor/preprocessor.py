@@ -34,10 +34,10 @@ def set_fidasim_dir(path):
     except ImportError as e:
         raise ImportError(f"Failed to import FIDASIM libraries: {e}")
 
-def read_fields(file_name,grid):
+def read_fields(file_name, grid, poloidal):
 
     print("     running 'read_fields' ...")
-    fields, rho, btipsign = read_geqdsk(file_name, grid, poloidal=True)
+    fields, rho, btipsign = read_geqdsk(file_name, grid, poloidal=poloidal)
     return fields, rho
 
 def read_plasma(config,grid,rho,plot_flag=False):
@@ -205,39 +205,18 @@ def read_plasma(config,grid,rho,plot_flag=False):
 
 def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
 
-    # Physical constants in SI units:
-    # charge_electron_SI = 1.60217663E-19  # [C]
-    # mass_proton_SI = 1.67262192E-27  # [Kg]
-    # mass_electron_SI = 9.1093837E-31  # [Kg]
-
     print("     running 'read_f4d' ...")
     start_time = time.time()
 
-    # Read nc file into dict:
-    f4d_nc = read_ncdf(config['f4d_ion_file_name'])
+    # Get time stamp and mass for this dataset:
+    src_nc = read_ncdf(config['plasma_file_name'])
+    time_stamp = src_nc['time'][-1]
 
-    # Get distribution function, dimensions: [theta,v, Z, R]
-    fbm_nc = f4d_nc['f4d']
-
-    # Rearrange dimensions to be [v,theta,R,Z]:
-    fbm_nc = fbm_nc.transpose(1, 0, 3, 2)
-
-    # Velocity space 1D grids for fbm_nc:
-    v_nc = f4d_nc['f4dv']
-    t_nc = f4d_nc['f4dt']
-    vv, tt = np.meshgrid(v_nc, t_nc, indexing='ij')
-
-    # Spatial 1D grids for fbm_nc:
-    r_nc = f4d_nc['f4dr']
-    z_nc = f4d_nc['f4dz']
-
-    # Create mask: (for regions outside LCFS)
-    # =======================================
-    max_rho = 1
-    mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
-
-    # Interpolate f4d into interpolation grids:
-    # =========================================
+    # Initialize fbm grid:
+    # ==========================
+    # FIDASIM subroutine "read_f" states that the fbm grid must have the same R,Z dimensions as the interpolation grid.
+    # It can however, have any dimension for the energy and pitch angle dimensions.
+    # To obtain the maximum resolution, we at least need to have the same energy and pitch dimensions as the nc file
 
     # Interpolation grids:
     r_grid = grid['r2d']
@@ -246,12 +225,43 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
     # Initialize fbm array:
     num_R = r_grid.shape[0]
     num_Z = z_grid.shape[1]
-    num_E = fbm_nc.shape[0]
-    num_P = fbm_nc.shape[1]
+    num_E = 1
+    num_P = 1
+    if interpolate_f4d:
+        num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
+        num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 
-    if interpolate_f4d == True:
+    # Initialize fbm density:
+    denf = np.zeros(z_grid.shape)
+
+    if interpolate_f4d:
+        # Interpolate f4d into interpolation grids:
+        # =========================================
+
         print("         Interpolating f4d ...")
+
+        # Read nc file into dict:
+        f4d_nc = read_ncdf(config['f4d_ion_file_name'])
+
+        # Read distribution function from nc file, dimensions: [theta,v, Z, R]
+        fbm_nc = f4d_nc['f4d']
+
+        # Rearrange dimensions to be [v,theta,R,Z]:
+        fbm_nc = fbm_nc.transpose(1, 0, 3, 2)
+
+        # Velocity space 1D grids for fbm_nc:
+        v_nc = f4d_nc['f4dv']
+        t_nc = f4d_nc['f4dt']
+        vv, tt = np.meshgrid(v_nc, t_nc, indexing='ij')
+
+        # Spatial 1D grids for fbm_nc:
+        r_nc = f4d_nc['f4dr']
+        z_nc = f4d_nc['f4dz']
+
+        # Create mask: (for regions outside LCFS)
+        max_rho = 1
+        mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
         # Reshape fbm_nc to bring the R and Z dimensions to the front: [R,Z,E,P]
         fbm_reshaped = fbm_nc.transpose(2, 3, 0, 1)
@@ -272,60 +282,56 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         # Create query points from interpolation grid, has dimensions [Rg*Zg,2]
         query_points = np.array([r_grid.flatten(),z_grid.flatten()]).T
 
-        # Perform interpolation, has dimensions [Rg*Zg,E*P]
+        # Perform interpolation, has dimensions [Rg*Zg,E*P]: (This is the most time-consuming operation in this script)
         interpolated_values = interpolator(query_points)
 
         # Reshape interpolated values back into the grid shape: [Rg,Zg,E,P]
         fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], fbm_nc.shape[0], fbm_nc.shape[1])
+
+        # Apply mask:
+        fbm_grid *= mask[:,:,np.newaxis,np.newaxis]
+
     else:
         print("         skipping interpolating f4d ...")
 
     # Reorder dimensions back to original [E,P,Rg,Zg]
     fbm_grid = fbm_grid.transpose(2, 3, 0, 1)
 
-    # Apply mask to fbm_grid:
-    mask_reshaped = mask[np.newaxis, np.newaxis, :, :]
-    fbm_grid *= mask_reshaped
-
     # Calculating fbm density:
     # =========================
-
-    # Initialize fbm density:
-    denf = np.zeros(z_grid.shape)
-
-    if (interpolate_f4d == True):
+    if interpolate_f4d:
         print("         Integrating f4d ...")
-        # Integrate over velocity (v) and pitch (v):
+
+        # Integrate over velocity (v) and pitch (v): (the trapz operation is quite time-consuming)
         p = np.cos(t_nc)
         v = v_nc
         int_over_v = np.trapz(fbm_grid * v[:, np.newaxis, np.newaxis, np.newaxis] ** 2, x=v, axis=0)
         denf = -2 * np.pi * np.trapz(int_over_v, x=p, axis=0)
+
+        # Grids for E and pitch coordinates (This is what FIDASIM requires)
+        mass_AMU = np.array([src_nc['fmass'][0] / (mass_proton_SI * 1e3)])
+        vnorm = f4d_nc['vnorm']
+        mass = mass_AMU*mass_proton_SI
+        enorm = f4d_nc['enorm']
+        ee_nc = (0.5 * mass * (vv * vnorm * 1e-2) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
+        pp_nc = np.cos(tt)
     else:
         print("         Skipping integrating f4d ...")
-
-    # Get time stamp and mass for this dataset:
-    src_nc = read_ncdf(config['plasma_file_name'])
-    time_stamp = src_nc['time'][-1]
-    mass_AMU = np.array([src_nc['fmass'][0]/(mass_proton_SI*1e3)])
-
-    # Grids for E and pitch coordinates (This is what FIDASIM requires)
-    vnorm = f4d_nc['vnorm']
-    mass = mass_AMU*mass_proton_SI
-    enorm = f4d_nc['enorm']
-    ee_nc = (0.5 * mass * (vv * vnorm * 1e-2) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
-    pp_nc = np.cos(tt)
 
     # Assemble output dict:
     # =====================
     nenergy = fbm_grid.shape[0]
     npitch = fbm_grid.shape[1]
-    pitch = pp_nc[0,:]
-    energy = ee_nc[:,1]
+    pitch = np.zeros(nenergy)
+    energy = np.zeros(npitch)
+    if interpolate_f4d:
+        pitch = pp_nc[0,:]
+        energy = ee_nc[:,1]
 
     fbm_dict = {"type":1,"time":time_stamp,"nenergy":nenergy,"energy":energy,"npitch":npitch,
               "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(config['f4d_ion_file_name'])}
 
-    if plot_flag:
+    if plot_flag and interpolate_f4d:
         # Plot #1: input f4d in vpar and vper coordinates:
         # ====================================================
 
@@ -368,7 +374,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         ax1.set_xlim([0, enorm])
         ax1.set_xlabel('Energy [keV]')
         ax1.set_ylabel(r'pitch $v_{\parallel}/v$')
-        ax1.set_title('INPUT: Ion f4d, R = 0, Z = 0')
+        ax1.set_title('INPUT: Ion f4d, R = 0, Z = 0 (to be used in FIDASIM)')
 
         # Output f4d:
         ir = 0
@@ -377,7 +383,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
         ax2.contourf(ee_nc,pp_nc,data)
         ax2.set_xlim([0,enorm])
         ax2.set_xlabel('Energy [keV]')
-        ax2.set_title('OUTPUT: Ion f4d, R = 0, Z = 0')
+        ax2.set_title('OUTPUT: Ion f4d, R = 0, Z = 0 (from CQL3D)')
 
         # Save figure:
         fig.savefig(config['output_path'] + 'f4d_ion_energy_pitch.png')
@@ -698,7 +704,7 @@ def assemble_nbi_dict(config):
            "awidy":awidy, "awidz":awidz, "aoffy":aoffy, "aoffz":aoffz}
 
     return nbi
-def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d):
+def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal):
 
     print("running 'create_fidasim_inputs_from_cql3dm' ...")
 
@@ -713,8 +719,9 @@ def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d):
 
     # Compute equil dict:
     # =====================
+    # Use poloidal=True for mirror devices AND poloidal=False for tokamak device
     file_name = config["equil_file_name"]
-    equil, rho = read_fields(file_name,grid)
+    equil, rho = read_fields(file_name, grid, poloidal)
 
     # Compute the plasma dict:
     # ========================

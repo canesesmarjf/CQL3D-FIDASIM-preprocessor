@@ -10,8 +10,9 @@ config = pp.read_preprocessor_config(file_name)
 
 # Create FIDASIM input files using PREFIDA:
 plot_flag = True
-include_f4d = True
-pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d)
+include_f4d = False
+poloidal = True
+pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal)
 
 print("End of script")
 

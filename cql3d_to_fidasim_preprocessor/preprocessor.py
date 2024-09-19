@@ -1,6 +1,7 @@
 import sys
 import time
 import os
+import subprocess
 import datetime
 import warnings
 import f90nml
@@ -9,6 +10,8 @@ from scipy.interpolate import RegularGridInterpolator, griddata
 import matplotlib
 matplotlib.use('TkAgg')  # Use TkAgg backend
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 plt.ion()  # Turn on interactive mode
 
 # Define physical constants:
@@ -34,15 +37,246 @@ def set_fidasim_dir(path):
     except ImportError as e:
         raise ImportError(f"Failed to import FIDASIM libraries: {e}")
 
-def read_fields(file_name, grid, poloidal):
-
+def read_fields(file_name, grid, eqdsk_type):
     print("     running 'read_fields' ...")
+
+    if eqdsk_type == 1:
+        poloidal = True
+    else:
+        poloidal = False
+
     fields, rho, btipsign = read_geqdsk(file_name, grid, poloidal=poloidal)
+
     return fields, rho
 
-def read_plasma(config,grid,rho,plot_flag=False):
-
+def read_plasma(config,grid,rho,plot_flag,plasma_from_cqlinput):
     print("     running 'read_plasma' ...")
+
+    if plasma_from_cqlinput:
+        print("         Define profiles using cqlinput namelist ...")
+        plasma = read_plasma_cqlinput(config,grid,rho)
+    else:
+        print("         Define profiles using CQL3D standard netCDF output ...")
+        plasma = read_plasma_netcdf(config,grid,rho)
+
+    return plasma
+
+def plot_plasma(config,grid,rho,plasma):
+
+    # Plot mask:
+    fig = plt.figure(5)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0,25])
+    plt.xlabel('R [cm]')
+    plt.title('Mask')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'mask.png')
+
+    # Plot density profile:
+    fig = plt.figure(6)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['dene'] * plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0,25])
+    plt.xlabel('R [cm]')
+    plt.title('Electron density')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'dene.png')
+
+    # Plot electron temperature profile:
+    fig = plt.figure(7)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['te'] * plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0, 25])
+    plt.xlabel('R [cm]')
+    plt.title('Electron temperature [keV]')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'te.png')
+
+    # Plot ion temperature profile:
+    fig = plt.figure(8)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['ti'] * plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0, 25])
+    plt.xlabel('R [cm]')
+    plt.title('Ion temperature [keV]')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'ti.png')
+
+def read_plasma_cqlinput(config,grid,rho):
+    print("         reading cqlinput")
+
+    # Read cqlinput namelist:
+    cqlinput = config["cqlinput"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        nml = f90nml.read(cqlinput)
+
+    # Determine type of profile:
+    iprone = nml['setup']['iprone']
+    if iprone == "parabola":
+        print("         Define plasma profile using cqlinput parabolic profile")
+    elif iprone == "spline":
+        print("         Define plasma profile using cqlinput spline profile")
+        print("             Error: spline profile setup not available ...")
+        sys.exit(0)
+    else:
+        print("         Error: Cannot define plasma ...")
+        sys.exit(0)
+
+    # Species information:
+    ngen = nml['setup']['ngen']
+    nmax = nml['setup']['nmax']
+    fmass = nml['setup']['fmass']
+    kspeci = nml['setup']['kspeci']
+    bnumb = nml['setup']['bnumb']
+
+    # Charge number of main impurity species:
+    impurity_charge = config['impurity_charge']
+
+    # Number of hydrogenic thermal species/isotopes
+    nthermal = 1  # This appears to be set to 1 in the FIDASIM parameter list.
+
+    # Mass of FP'd ion species from CQL3D:
+    species_mass = np.array([fmass[0]/mass_proton_CGI])
+
+    # rho clipped for rho>1 to avoid negative numbers:
+    rho_clipped = np.clip(rho,0,1)
+
+    #  Electron density:
+    # ========================
+    # Parabolic profile:
+    dene_edge   = nml['setup']['reden'][1][1]
+    dene_center = nml['setup']['reden'][0][1]
+    npwr = nml['setup']['npwr']
+    mpwr = nml['setup']['mpwr']
+    dene = (dene_center - dene_edge)*(1.0 - rho_clipped**npwr[1])**mpwr[1] + dene_edge
+
+    # Electron temperature:
+    # ==========================
+    te_edge = nml['setup']['temp'][1][1]
+    te_center = nml['setup']['temp'][0][1]
+    te = (te_center - te_edge) * (1.0 - rho_clipped ** npwr[1]) ** mpwr[1] + te_edge
+
+    # Ion temperature:
+    # =================
+    ti_edge = nml['setup']['temp'][1][0]
+    ti_center = nml['setup']['temp'][0][0]
+    ti = (ti_center - ti_edge) * (1.0 - rho_clipped ** npwr[0]) ** mpwr[0] + ti_edge
+
+    # Effective nuclear charge:
+    # =========================
+    zeff = np.ones(dene.shape)
+
+    # Omega: plasma angular rotation:
+    # ===============================
+    omega_nc = np.zeros(dene.shape)
+
+    # Values outside LCFS:
+    # ====================
+    # These are used to define non-zero plasma parameters in the region between the LCFS and the vacuum chamber wall
+    # In the future, a better treatment of this can be done using exponential decay functions.
+    dene_LCFS = config["dene_LCFS"]
+    te_LCFS = config["te_LCFS"]
+    ti_LCFS = config["ti_LCFS"]
+    zeff_LCFS = config["zeff_LCFS"]
+    rho_LCFS = config["rho_LCFS"]
+
+    # Adjust profile values outside LCFS:
+    # ====================================
+    # Adjust the profile values in the regions beyond the CFS:
+    dene = np.where(rho > rho_LCFS, dene_LCFS, dene)
+    te = np.where(rho > rho_LCFS, te_LCFS, te)
+    ti = np.where(rho > rho_LCFS, ti_LCFS, ti)
+    zeff = np.where(rho > rho_LCFS, zeff_LCFS, zeff)
+
+    # Ion and impurity density profiles:
+    # Can "deni" be defined for multiple ion species?
+    denimp = dene * (zeff - 1) / (impurity_charge * (impurity_charge - 1))
+    deni = (dene - impurity_charge * denimp).reshape(1, grid['nr'], grid['nz'])
+    deni = np.where(deni > 0.0, deni, 0.0).astype('float64')
+
+    # Plasma rotation:
+    # Set plasma rotation to zero
+    # This may need to change in near future if ExB rotation becomes important
+    vt = np.zeros(dene.shape)
+    vr = vt
+    vz = vt
+
+    # Cold/Edge neutral density profile:
+    denn = 1e8 * np.ones(dene.shape)  # Copied value used in the FIDASIM test case
+
+    # Create mask:
+    # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
+    # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
+    # We need to make the plasma region defined over a large region.
+    max_rho = 1.2
+    mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
+
+    # Assemble output dictionary:
+    # plasma = {"time": 0.0, "data_source": config["plasma_file_name"], "mask": mask,
+    #           "deni": deni, "denimp": denimp, "species_mass": species_mass,
+    #           "nthermal": nthermal, "impurity_charge": impurity_charge,
+    #           "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
+    #           "dene": dene, "zeff": zeff, "denn": denn, "profiles": nml}
+
+    plasma = {"time": 0.0, "data_source": config["plasma_file_name"], "mask": mask,
+              "deni": deni, "denimp": denimp, "species_mass": species_mass,
+              "nthermal": nthermal, "impurity_charge": impurity_charge,
+              "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
+              "dene": dene, "zeff": zeff, "denn": denn}
+
+    return plasma
+
+    # Some variables that will be useful:
+
+    # Profile switches:
+    # iprote = nml['setup']['iprote']
+    # iproti = nml['setup']['iproti']
+    # iprone = nml['setup']['iprone']
+    # iprozeff = nml['setup']['iprozeff']
+    # iprovphi = nml['setup']['iprovphi']
+    # ipronn = nml['setup']['ipronn']
+
+    # Species information:
+    # ngen = nml['setup']['ngen']
+    # nmax = nml['setup']['nmax']
+    # fmass = nml['setup']['fmass']
+    # kspeci = nml['setup']['kspeci']
+    # bnumb = nml['setup']['bnumb']
+
+    # Parabolic profiles:
+    # npwr = nml['setup']['npwr']
+    # mpwr = nml['setup']['mpwr']
+    # reden = nml['setup']['reden']
+    # temp = nml['setup']['temp']
+
+    # Spline profiles:
+    # njene = nml['setup']['njene']
+    # ryain = nml['setup']['ryain']
+    # enein = nml['setup']['enein']
+    # tein = nml['setup']['tein']
+    # zeffin = nml['setup']['zeffin']
+    # tiin = nml['setup']['tiin']
+
+    # iprone.eq."parabola"): The user specifies reden(k,0) (central value) and reden(k,1) (edge value
+    # nml['setup']['reden'][0] # Central value in [cm^-3]
+    # nml['setup']['reden'][1] # edge value in [cm^-3]
+
+def read_plasma_netcdf(config,grid,rho):
+    print("             reading netcdf file")
 
     # Read CQL3D standard .nc file into dict:
     nc_data = read_ncdf(config["plasma_file_name"])
@@ -51,14 +285,14 @@ def read_plasma(config,grid,rho,plot_flag=False):
     impurity_charge = config["impurity_charge"]
 
     # Number of hydrogenic thermal species/isotopes
-    nthermal = 1 # This appears to be set to 1 in the FIDASIM parameter list.
+    nthermal = 1  # This appears to be set to 1 in the FIDASIM parameter list.
 
     # Mass of FP ion species from CQL3D-M:
-    species_mass = np.array([nc_data['fmass'][0]/mass_proton_CGI])
+    species_mass = np.array([nc_data['fmass'][0] / mass_proton_CGI])
 
     # Grid coordinates for the nc profile data:
-    r_nc = nc_data['solrz'] # R coordinates for flux surfaces
-    z_nc = nc_data['solzz'] # Z coordinates for flux surfaces
+    r_nc = nc_data['solrz']  # R coordinates for flux surfaces
+    z_nc = nc_data['solzz']  # Z coordinates for flux surfaces
 
     # Make z_nc symmetric about R-axis:
     flipped_z_nc = -np.flip(z_nc, axis=1)
@@ -73,11 +307,10 @@ def read_plasma(config,grid,rho,plot_flag=False):
     threshold = 1e20
     valid_indices = np.where(nc_data['densz1'][:, :, :, 1] < threshold)[0]  # Check tdim values
     valid_idx = valid_indices[-1]  # Last valid index
-    print("The last valid index is: " + str(valid_idx))
+    print("                 The last valid index is: " + str(valid_idx))
 
     # Electron density profile from nc file, dimensions [tdim, r0dim, zdim, species]
     dene_nc = nc_data['densz1'][valid_idx, :, :, 1]  # Selects the appropriate slice
-    # dene_nc = nc_data['densz1'][-1,:,:,1]
 
     # Symmetrize it about the R axis:
     flipped_dene_nc = np.flip(dene_nc, axis=1)
@@ -86,8 +319,7 @@ def read_plasma(config,grid,rho,plot_flag=False):
     # ELECTRON TEMPERATURE:
     # =====================
     # Electron temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    te_nc = nc_data['energyz'][valid_idx,:,1,:]*2/3
-    # te_nc = nc_data['energyz'][-1,:,1,:]*2/3
+    te_nc = nc_data['energyz'][valid_idx, :, 1, :] * 2 / 3
 
     # Symmetrize it about the R axis:
     flipped_te_nc = np.flip(te_nc, axis=1)
@@ -96,8 +328,7 @@ def read_plasma(config,grid,rho,plot_flag=False):
     # ION TEMPERATURE:
     # ==================
     # Ion temperature profile from nc file, dimensions [tdim, r0dim, species, zdim]
-    ti_nc = nc_data['energyz'][valid_idx,:,0,:]*2/3
-    # ti_nc = nc_data['energyz'][-1,:,0,:]*2/3
+    ti_nc = nc_data['energyz'][valid_idx, :, 0, :] * 2 / 3
 
     # Symmetrize it about the R axis:
     flipped_ti_nc = np.flip(ti_nc, axis=1)
@@ -129,10 +360,10 @@ def read_plasma(config,grid,rho,plot_flag=False):
     # Interpolate nc profiles into interpolation grid "grid":
     # Use "fill_value" option to prevent NaNs in regions outside the convex hull of the input data
     points = np.column_stack((r_nc.flatten(), z_nc.flatten()))  # Non-uniform grid points
-    dene = griddata(points, dene_nc.flatten(), (r2d, z2d), method='linear',fill_value=dene_LCFS)
-    zeff = griddata(points, zeff_nc.flatten(), (r2d, z2d), method='linear',fill_value=zeff_LCFS)
-    te = griddata(points, te_nc.flatten(), (r2d, z2d), method='linear',fill_value=te_LCFS)
-    ti = griddata(points, ti_nc.flatten(), (r2d, z2d), method='linear',fill_value=ti_LCFS)
+    dene = griddata(points, dene_nc.flatten(), (r2d, z2d), method='linear', fill_value=dene_LCFS)
+    zeff = griddata(points, zeff_nc.flatten(), (r2d, z2d), method='linear', fill_value=zeff_LCFS)
+    te = griddata(points, te_nc.flatten(), (r2d, z2d), method='linear', fill_value=te_LCFS)
+    ti = griddata(points, ti_nc.flatten(), (r2d, z2d), method='linear', fill_value=ti_LCFS)
 
     # Adjust the profile values in the regions beyond the CFS:
     dene = np.where(rho > rho_LCFS, dene_LCFS, dene)
@@ -142,8 +373,8 @@ def read_plasma(config,grid,rho,plot_flag=False):
 
     # Ion and impurity density profiles:
     # Can "deni" be defined for multiple ion species?
-    denimp = dene*(zeff - 1)/(impurity_charge*(impurity_charge-1))
-    deni = (dene - impurity_charge*denimp).reshape(1,grid['nr'],grid['nz'])
+    denimp = dene * (zeff - 1) / (impurity_charge * (impurity_charge - 1))
+    deni = (dene - impurity_charge * denimp).reshape(1, grid['nr'], grid['nz'])
     deni = np.where(deni > 0.0, deni, 0.0).astype('float64')
 
     # Plasma rotation:
@@ -154,63 +385,53 @@ def read_plasma(config,grid,rho,plot_flag=False):
     vz = vt
 
     # Cold/Edge neutral density profile:
-    denn = 1e8*np.ones(dene.shape) # Copied value used in the FIDASIM test case
+    denn = 1e8 * np.ones(dene.shape)  # Copied value used in the FIDASIM test case
 
     # Create mask:
     # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
-    max_rho = 10
+    max_rho = 1.5
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
-    plasma = {"time":nc_data['time'][-1], "data_source":config["plasma_file_name"], "mask":mask,
-                "deni":deni,"denimp":denimp,"species_mass":species_mass,
-                "nthermal":nthermal,"impurity_charge":impurity_charge,
-                "te":te, "ti":ti, "vr":vr, "vt":vt, "vz":vz,
-                "dene":dene, "zeff":zeff, "denn":denn,"profiles":nc_data}
+    # plasma = {"time": nc_data['time'][-1], "data_source": config["plasma_file_name"], "mask": mask,
+    #           "deni": deni, "denimp": denimp, "species_mass": species_mass,
+    #           "nthermal": nthermal, "impurity_charge": impurity_charge,
+    #           "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
+    #           "dene": dene, "zeff": zeff, "denn": denn, "profiles": nc_data}
 
-    if plot_flag:
-        fig = plt.figure(5)
-        plt.contourf(r2d,z2d,dene*mask)
-        plt.colorbar()
-        plt.plot(r_nc.T,z_nc.T,color='r',lw=1.0)
-        plt.xlim([0,25])
-        plt.xlabel('R [cm]')
-        plt.title('Electron density')
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(config["output_path"] + 'dene.png')
-
-        fig = plt.figure(6)
-        plt.contourf(r2d, z2d, te * mask)
-        plt.colorbar()
-        plt.plot(r_nc.T, z_nc.T, color='r', lw=1.0)
-        plt.xlim([0, 25])
-        plt.xlabel('R [cm]')
-        plt.title('Electron temperature [keV]')
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(config["output_path"] + 'te.png')
-
-        fig = plt.figure(7)
-        plt.contourf(r2d,z2d,ti*mask)
-        plt.colorbar()
-        plt.plot(r_nc.T,z_nc.T,color='r',lw=1.0)
-        plt.xlim([0,25])
-        plt.xlabel('R [cm]')
-        plt.title('Ion temperature [keV]')
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(config["output_path"] + 'ti.png')
+    plasma = {"time": nc_data['time'][-1], "data_source": config["plasma_file_name"], "mask": mask,
+              "deni": deni, "denimp": denimp, "species_mass": species_mass,
+              "nthermal": nthermal, "impurity_charge": impurity_charge,
+              "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
+              "dene": dene, "zeff": zeff, "denn": denn}
 
     return plasma
 
-def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
+def read_f4d(config,grid,rho,plot_flag,include_f4d):
 
     print("     running 'read_f4d' ...")
     start_time = time.time()
 
-    # Get time stamp and mass for this dataset:
-    src_nc = read_ncdf(config['plasma_file_name'])
-    time_stamp = src_nc['time'][-1]
+    # Default time stamp:
+    time_stamp = 0.0
+
+    # Get time if nc file exists:
+    nc_file_name = config['plasma_file_name']
+    if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
+        # Get time stamp and mass for this dataset:
+        src_nc = read_ncdf(nc_file_name)
+        time_stamp = src_nc['time'][-1]
+    else:
+        print("         Using default timestamp, plasma_file_name at " + nc_file_name)
+
+    # try:
+    #     # Get time stamp and mass for this dataset:
+    #     src_nc = read_ncdf(config['plasma_file_name'])
+    #     time_stamp = src_nc['time'][-1]
+    # except:
+    #     print("Could not read " + config['plasma_file_name'])
 
     # Initialize fbm grid:
     # ==========================
@@ -225,9 +446,9 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
     # Initialize fbm array:
     num_R = r_grid.shape[0]
     num_Z = z_grid.shape[1]
-    num_E = 1
-    num_P = 1
-    if interpolate_f4d:
+    num_E = 2
+    num_P = 2
+    if include_f4d:
         num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
         num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
@@ -235,7 +456,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
     # Initialize fbm density:
     denf = np.zeros(z_grid.shape)
 
-    if interpolate_f4d:
+    if include_f4d:
         # Interpolate f4d into interpolation grids:
         # =========================================
 
@@ -299,7 +520,7 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
 
     # Calculating fbm density:
     # =========================
-    if interpolate_f4d:
+    if include_f4d:
         print("         Integrating f4d ...")
 
         # Integrate over velocity (v) and pitch (v): (the trapz operation is quite time-consuming)
@@ -324,14 +545,14 @@ def read_f4d(config,grid,rho,plot_flag=False,interpolate_f4d=True):
     npitch = fbm_grid.shape[1]
     pitch = np.zeros(nenergy)
     energy = np.zeros(npitch)
-    if interpolate_f4d:
+    if include_f4d:
         pitch = pp_nc[0,:]
         energy = ee_nc[:,1]
 
     fbm_dict = {"type":1,"time":time_stamp,"nenergy":nenergy,"energy":energy,"npitch":npitch,
               "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(config['f4d_ion_file_name'])}
 
-    if plot_flag and interpolate_f4d:
+    if plot_flag and include_f4d:
         # Plot #1: input f4d in vpar and vper coordinates:
         # ====================================================
 
@@ -515,9 +736,12 @@ def assemble_inputs(config, nbi):
     for ii in range(3):
         current_fractions[ii] = nml['frsetup']['fbcur'][0][ii]
 
-    # Read standard cql3d output nc file:
-    nc = read_ncdf(nc_file_name)
-    time_stamp = nc['time'][-1]
+    if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
+        # Read standard cql3d output nc file:
+        nc = read_ncdf(nc_file_name)
+        time_stamp = nc['time'][-1]
+    else:
+        time_stamp = 0.0
 
     # Set a seed to use for random number generator:
     seed = 1610735994
@@ -570,29 +794,40 @@ def assemble_inputs(config, nbi):
     nx = config["beam_grid"]["nx"]
     ny = config["beam_grid"]["ny"]
     nz = config["beam_grid"]["nz"]
-    rstart = float(config["beam_grid"]["rstart"])
-    length = float(config["beam_grid"]["length"])
-    width = float(config["beam_grid"]["width"])
-    height = float(config["beam_grid"]["height"])
+
 
     if (config["beam_grid"]["beam_aligned"]):
         # Beam-aligned beam grid:
+
+        rstart = float(config["beam_grid"]["rstart"])
+        length = float(config["beam_grid"]["length"])
+        width = float(config["beam_grid"]["width"])
+        height = float(config["beam_grid"]["height"])
         basic_bgrid = beam_grid(nbi, rstart=rstart, nx=nx, ny=ny, nz=nz, length=length, width=width, height=height)
     else:
         # Machine-aligned beam grid:
+
+        # Origin of beam grid in UVW:
+        basic_bgrid["origin"] = np.array(config['beam_grid']['origin_uvw'])
+
+        # Bryan-Tait angles:
+        # Rotation is applied to the UVW coord system to produce the beam grid coord system XYZ
+        basic_bgrid["alpha"] = float(config["beam_grid"]["alpha"]) # Active rotation about "Z"
+        basic_bgrid["beta"]  = float(config["beam_grid"]["beta"]) # Active rotation about "Y'"
+        basic_bgrid["gamma"] = float(config["beam_grid"]["gamma"]) # Active rotation about "X''"
+
+        # Define boundaries of beam grid in XYZ coordinate system:
+        basic_bgrid["xmin"] = float(config["beam_grid"]["xmin"])
+        basic_bgrid["xmax"] = float(config["beam_grid"]["xmax"])
+        basic_bgrid["ymin"] = float(config["beam_grid"]["ymin"])
+        basic_bgrid["ymax"] = float(config["beam_grid"]["ymax"])
+        basic_bgrid["zmin"] = float(config["beam_grid"]["zmin"])
+        basic_bgrid["zmax"] = float(config["beam_grid"]["zmax"])
+
+        # Number of elements of beam grid:
         basic_bgrid["nx"] = nx
         basic_bgrid["ny"] = ny
         basic_bgrid["nz"] = nz
-        basic_bgrid["alpha"] = np.pi
-        basic_bgrid["beta"] = np.pi/2
-        basic_bgrid["gamma"] = 0.0
-        basic_bgrid["xmin"] = -length/2
-        basic_bgrid["xmax"] = +length/2
-        basic_bgrid["ymin"] = -width/2
-        basic_bgrid["ymax"] = +width/2
-        basic_bgrid["zmin"] = -height/2
-        basic_bgrid["zmax"] = +height/2
-        basic_bgrid["origin"] = np.zeros(3)
 
     # Add beam grid to input namelist:
     inputs = basic_inputs.copy()
@@ -626,6 +861,7 @@ def assemble_nbi_dict(config):
     beta = nml['frsetup']['anglev'][0]*np.pi/180
     alpha = nml['frsetup']['angleh'][0]*np.pi/180
     blenp = nml['frsetup']['blenp'][0]
+    bshape_nml = nml['frsetup']['bshape'][0]
     ashape_nml = nml['frsetup']['ashape'][0][0]
     naptr = nml['frsetup']['naptr']
     aheigh = nml['frsetup']['aheigh'][0][0]
@@ -697,16 +933,362 @@ def assemble_nbi_dict(config):
     elif ashape_nml == "s-circ":
         ashape = 2
 
-    nbi = {"name":"test_beam","shape":1,"data_source":'run_tests:test_beam',
+    bshape = 1
+    if bshape_nml == "rect":
+        bshape = 1
+    elif bshape_nml == "circ":
+        bshape = 2
+
+    nbi = {"name":"test_beam","shape":bshape,"data_source":'run_tests:test_beam',
            "src":uvw_src, "axis":uvw_axis, "widy":widy, "widz":widz,
            "divy":divy, "divz":divz, "focy":focy, "focz":focz,
            "naperture":naperture, "ashape":ashape, "adist":adist,
            "awidy":awidy, "awidz":awidz, "aoffy":aoffy, "aoffz":aoffz}
 
     return nbi
-def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal):
+
+
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale.'''
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    y_range = abs(y_limits[1] - y_limits[0])
+    z_range = abs(z_limits[1] - z_limits[0])
+
+    max_range = max(x_range, y_range, z_range)
+
+    x_middle = np.mean(x_limits)
+    y_middle = np.mean(y_limits)
+    z_middle = np.mean(z_limits)
+
+    ax.set_xlim3d([x_middle - max_range / 2, x_middle + max_range / 2])
+    ax.set_ylim3d([y_middle - max_range / 2, y_middle + max_range / 2])
+    ax.set_zlim3d([z_middle - max_range / 2, z_middle + max_range / 2])
+
+
+def draw_rectangle(ax, center, axis, widy, widz):
+    '''Draws a rectangle in 3D space given the center, axis, and half-widths.'''
+    # Generate two orthogonal vectors to the axis
+    axis = axis / np.linalg.norm(axis)  # Normalize axis
+    y_vec = np.cross(axis, [0, 0, 1])
+    if np.linalg.norm(y_vec) == 0:
+        y_vec = np.cross(axis, [0, 1, 0])
+    y_vec = y_vec / np.linalg.norm(y_vec) * widy
+
+    z_vec = np.cross(axis, y_vec)
+    z_vec = z_vec / np.linalg.norm(z_vec) * widz
+
+    # Calculate the four corners of the rectangle
+    corners = [
+        center - y_vec - z_vec,
+        center + y_vec - z_vec,
+        center + y_vec + z_vec,
+        center - y_vec + z_vec
+    ]
+
+    # Add rectangle to plot
+    verts = [corners]
+    poly = Poly3DCollection(verts, facecolors='b', alpha=0.6, edgecolors='r')
+    ax.add_collection3d(poly)
+
+def draw_circle(ax, center, axis, widy, widz):
+    '''Draws a circle in 3D space given the center, axis, and radii (widy, widz).'''
+    # Generate two orthogonal vectors to the axis
+    axis = axis / np.linalg.norm(axis)  # Normalize axis
+    y_vec = np.cross(axis, [0, 0, 1])
+    if np.linalg.norm(y_vec) == 0:
+        y_vec = np.cross(axis, [0, 1, 0])
+    y_vec = y_vec / np.linalg.norm(y_vec) * widy
+
+    z_vec = np.cross(axis, y_vec)
+    z_vec = z_vec / np.linalg.norm(z_vec) * widz
+
+    # Parametric angles for the circle
+    u = np.linspace(0, 2 * np.pi, 100)
+
+    # Circle points in the normal plane
+    circle_points = np.outer(np.cos(u), y_vec) + np.outer(np.sin(u), z_vec)
+
+    # Translate the circle to the center point
+    circle_points = circle_points + center
+
+    # Plot the circle
+    ax.plot3D(circle_points[:, 0], circle_points[:, 1], circle_points[:, 2], color='b')
+def draw_nbi_aperture(ax, shape, center, axis, widy, widz):
+    '''Draw a neutral beam ion source (NBI) aperture as either a rectangle (shape=1) or a circle (shape=2).'''
+
+    # Check the shape type
+    if shape == 1:
+        # Draw a rectangular source/aperture:
+        draw_rectangle(ax, center=center, axis=axis, widy=widy, widz=widz)
+    elif shape == 2:
+        # Draw a circular source/aperture:
+        draw_circle(ax, center=center, axis=axis, widy=widy, widz=widz)
+    else:
+        raise ValueError("Shape must be 1 (rectangular) or 2 (circular).")
+
+def plot_nbi(config,grid,rho,nbi):
+    print("Plot NBI geometry")
+
+    # NBI optical path:
+    # =================
+    src_uvw = nbi['src']
+    axis_uvw = nbi['axis']
+    path_distance = 2.5*np.max([grid['r'].max(), grid['z'].max()])
+    path = np.linspace(0,path_distance)
+    nbi_path_uvw = src_uvw + np.outer(path,axis_uvw)
+    aper_uvw = nbi['adist']
+
+    # Plasma boundary:
+    # =================
+    dum, ax = plt.subplots()
+    contour = ax.contour(grid['r2d'],grid['z2d'], rho, levels=[1], colors='r')
+    contour_paths = contour.collections[0].get_paths()  # Get the contour paths
+    Rc = []
+    Zc = []
+    # Loop over the paths and extract the coordinates
+    for path in contour_paths:
+        v = path.vertices  # Array of coordinates
+        Rc.append(v[:, 0])  # R coordinates
+        Zc.append(v[:, 1])  # Z coordinates
+
+    # Convert Rc and Zc to 1D arrays (assuming one continuous contour)
+    Rc = np.concatenate(Rc)
+    Zc = np.concatenate(Zc)
+    plt.close(dum)
+
+    # Create a surface of revolution about the W axis:
+    # ================================================================
+    # Number of points around the Z-axis
+    num_angles = 100
+    theta_start = -0*np.pi/180
+    theta_end = +360*np.pi/180
+    theta = np.linspace(theta_start, theta_end, num_angles)
+
+    # Create a 2D grid for theta and Rc
+    Theta, Rc_grid = np.meshgrid(theta, Rc)
+
+    # Parametric equations for the surface of revolution
+    U = Rc_grid * np.cos(Theta)  # X = R cos(theta)
+    V = Rc_grid * np.sin(Theta)  # Y = R sin(theta)
+    W = np.tile(Zc, (num_angles, 1)).T  # Z stays the same for each revolution
+
+    # Plot 3D diagram:
+    # =================
+    fig = plt.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    u_path = nbi_path_uvw[:,0]
+    v_path = nbi_path_uvw[:,1]
+    w_path = nbi_path_uvw[:,2]
+    ax.plot(u_path,v_path,w_path,color='r',lw=2)
+
+    # Plot surface with transparency (alpha)
+    ax.plot_surface(U, V, W, color='b', alpha=0.25)
+
+    # Set labels
+    ax.set_xlabel('U')
+    ax.set_ylabel('V')
+    ax.set_zlabel('W')
+
+    # Set equal scaling on all axes
+    set_axes_equal(ax)
+
+    # Extract variables from the dictionary
+    shape = nbi['shape']
+    src = nbi['src']  # The source location in UVW coordinates
+    axis = nbi['axis']  # The normal vector of the ion source
+    widy = nbi['widy']  # Half-width of the source in y direction
+    widz = nbi['widz']  # Half-width of the source in z direction
+
+    # Plot the source geometry
+    draw_nbi_aperture(ax, shape, src, axis, widy, widz)
+
+    # Draw aperture:
+    asrc = src + axis*nbi['adist']
+    draw_nbi_aperture(ax, nbi['ashape'], asrc, axis, nbi['awidy'], nbi['awidz'])
+
+    # Set the view:
+    elev = +30
+    azim = -60
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Format axes:
+    ax.xaxis.pane.set_facecolor('white')
+    ax.yaxis.pane.set_facecolor('white')
+    ax.zaxis.pane.set_facecolor('white')
+    ax.xaxis.pane.set_edgecolor('white')
+    ax.yaxis.pane.set_edgecolor('white')
+    ax.zaxis.pane.set_edgecolor('white')
+    ax.xaxis.pane.set_alpha(0.3)
+    ax.grid(False)
+    plt.show()
+
+    # Save image:
+    ax.set_title('NBI geometry')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
+
+    # Set the view:
+    elev = +90
+    azim = -90
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_UV.png')
+
+    # Set the view:
+    elev = +0
+    azim = -90
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_UW.png')
+
+    # Set the view:
+    elev = +0
+    azim = +0
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_VW.png')
+
+    return fig,ax
+
+def draw_rectangular_volume(ax, vertices_uvw, faces, alpha=0.3, color='b'):
+    '''Draws a rectangular volume in 3D using the vertices and faces.'''
+
+    # Create a list of the vertices for each face
+    verts = []
+    for face in faces.T:
+        verts.append([vertices_uvw[:, i] for i in face])
+
+    # Create a Poly3DCollection with translucent faces
+    poly = Poly3DCollection(verts, facecolors=color, linewidths=0.5, edgecolors=color, alpha=alpha)
+
+    # Add the collection to the plot
+    ax.add_collection3d(poly)
+
+def plot_beam_grid(fig,ax,config):
+    print("plotting beam grid:")
+
+    # Gather grid boundaries in XYZ coordinate system:
+    xmin = config['beam_grid']['xmin']
+    xmax = config['beam_grid']['xmax']
+    ymin = config['beam_grid']['ymin']
+    ymax = config['beam_grid']['ymax']
+    zmin = config['beam_grid']['zmin']
+    zmax = config['beam_grid']['zmax']
+
+    # Bryan-Tait rotation angles to produce XYZ from UVW:
+    alpha = config['beam_grid']['alpha']
+    beta = config['beam_grid']['beta']
+    gamma = config['beam_grid']['gamma']
+
+    # Beam grid origin in machine coordinate system UVW:
+    beam_grid_origin_uvw = np.array([0,0,0])
+
+    # Vertices in XYZ coord system:
+    beam_grid_vertices = np.array([
+        [xmin, ymin, zmin],
+        [xmin, ymin, zmax],
+        [xmin, ymax, zmin],
+        [xmin, ymax, zmax],
+        [xmax, ymin, zmin],
+        [xmax, ymin, zmax],
+        [xmax, ymax, zmin],
+        [xmax, ymax, zmax]
+    ])
+
+    # Transpose to get 8 column vectors
+    beam_grid_vertices = beam_grid_vertices.T  # Transpose to get column vectors
+
+    # Define the beam_grid faces of the rectangle using the beam_grid vertices
+    beam_grid_faces = np.array([
+        [1, 2, 4, 3],  # Side face (xmin)
+        [5, 6, 8, 7],  # Side face (xmax)
+        [1, 2, 6, 5],  # Side face (ymin)
+        [3, 4, 8, 7],  # Side face (ymax)
+        [1, 3, 7, 5],  # Bottom face
+        [2, 4, 8, 6]  # Top face
+    ])
+
+    # In Python, indices are zero-based, so subtract 1 from MATLAB-style indexing:
+    beam_grid_faces = beam_grid_faces.T - 1
+
+    # Compute cosines and sines for the rotation matrix
+    ca = np.cos(alpha)
+    cb = np.cos(beta)
+    sa = np.sin(alpha)
+    sb = np.sin(beta)
+
+    # Rotation matrix (basis) as described in the MATLAB code
+    beam_grid_basis = np.array([
+        [ca * cb, -sa, ca * sb],
+        [cb * sa, ca, sa * sb],
+        [-sb, 0, cb]
+    ])
+
+    # Compute the beam grid vertices in the UVW machine coordinate system
+    beam_grid_vertices_uvw = np.zeros_like(beam_grid_vertices)
+    for ii in range(beam_grid_vertices.shape[1]):
+        beam_grid_vertices_uvw[:, ii] = beam_grid_origin_uvw + np.dot(beam_grid_basis, beam_grid_vertices[:, ii])
+
+    # Draw the rectangular volume with translucent surfaces
+    draw_rectangular_volume(ax, beam_grid_vertices_uvw, beam_grid_faces, alpha=0.3, color='cyan')
+
+    elev = +30
+    azim = -60
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    ax.set_title('NBI + beam grid geometry')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
+
+    # Set the view:
+    elev = +90
+    azim = -90
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_UV.png')
+
+    # Set the view:
+    elev = +0
+    azim = -90
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_UW.png')
+
+    # Set the view:
+    elev = +0
+    azim = +0
+    ax.view_init(elev, azim)
+    plt.show()
+
+    # Save image:
+    fig.savefig(config["output_path"] + 'NBI_geometry_VW.png')
+
+def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, plasma_from_cqlinput):
 
     print("running 'create_fidasim_inputs_from_cql3dm' ...")
+
+    # Clear all figures:
+    # Change to the desired directory
+    # os.chdir(config["output_path"])
+    # # Run the shell command to remove all .png files
+    # subprocess.run("rm -f *.png", shell=True)
 
     # Define interpolation grid:
     rmin = config["rmin"]
@@ -719,31 +1301,33 @@ def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal):
 
     # Compute equil dict:
     # =====================
-    # Use poloidal=True for mirror devices AND poloidal=False for tokamak device
-    file_name = config["equil_file_name"]
-    equil, rho = read_fields(file_name, grid, poloidal)
+    file_name = config["eqdsk_file_name"]
+    eqdsk_type = config["eqdsk_type"]
+    equil, rho = read_fields(file_name, grid, eqdsk_type)
 
     # Compute the plasma dict:
     # ========================
-    plasma = read_plasma(config,grid,rho,plot_flag=plot_flag)
+    plasma = read_plasma(config,grid,rho,plot_flag,plasma_from_cqlinput)
+    if plot_flag:
+        plot_plasma(config,grid,rho,plasma)
 
     # Compute fbm dict for ions:
     # =========================
     # How to I enable reading both ion and electron f?
     # What about for multiple ion species?
-
-    if include_f4d == True:
-        fbm = read_f4d(config, grid, rho, plot_flag=plot_flag, interpolate_f4d=True)
-    else:
-        fbm = read_f4d(config, grid, rho, plot_flag=plot_flag, interpolate_f4d=False)
+    fbm = read_f4d(config,grid,rho,plot_flag,include_f4d)
 
     # Compute nbi dict from cqlinput:
     # ===============================
     nbi = assemble_nbi_dict(config)
+    if plot_flag:
+        fig,ax = plot_nbi(config,grid,rho,nbi)
 
     # Compute inputs dict:
     # ===================
     inputs = assemble_inputs(config, nbi)
+    if plot_flag:
+        plot_beam_grid(fig,ax,config)
 
     # Produce input files for FIDASIM:
     # ================================
@@ -786,7 +1370,11 @@ def create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal):
         # plt.show()
 
         fig = plt.figure(3)
-        plt.contour(grid["r2d"],grid["z2d"],rho,levels=np.linspace(0.01, 1.0, 16))
+        levels = np.linspace(0.01, 1, 10)
+        contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels,colors='red',linewidths=1.0)
+        plt.clabel(contour_plot, inline=True, fontsize=8)
+
+        # plt.contour(grid["r2d"],grid["z2d"],rho,levels=np.linspace(0.01, 1.0, 16))
         plt.colorbar
         plt.title("flux_surfaces")
         plt.ylabel("Z [cm]")
@@ -827,7 +1415,8 @@ def read_preprocessor_config(file_name):
     # (Assume we only have a single ion species)
     sub_nml = nml['cql3d_input_files']
     input_dir = sub_nml['input_dir']
-    config["equil_file_name"] = input_dir + sub_nml['equil_file_name']
+    config["eqdsk_file_name"] = input_dir + sub_nml['eqdsk_file_name']
+    config["eqdsk_type"] = sub_nml['eqdsk_type']
     config["cqlinput"] = input_dir + sub_nml['cqlinput']
     config["plasma_file_name"] = input_dir + sub_nml['plasma_file_name']
     config["f4d_ion_file_name"] = input_dir + sub_nml['f4d_ion_file_name']
@@ -871,10 +1460,39 @@ def read_preprocessor_config(file_name):
     config["beam_grid"]["nx"] = sub_nml['nx']
     config["beam_grid"]["ny"] = sub_nml['ny']
     config["beam_grid"]["nz"] = sub_nml['nz']
-    config["beam_grid"]["rstart"] = sub_nml['rstart']  # Only works for "beam_aligned" == True
-    config["beam_grid"]["length"] = sub_nml['length']
-    config["beam_grid"]["width"] = sub_nml['width']
-    config["beam_grid"]["height"] = sub_nml['height']
+
+    # config["beam_grid"]["rstart"] = -1
+    # config["beam_grid"]["length"] = -1
+    # config["beam_grid"]["width"] = -1
+    # config["beam_grid"]["height"] = -1
+    # config["beam_grid"]["alpha"] = -1
+    # config["beam_grid"]["beta"] = -1
+    # config["beam_grid"]["gamma"] = sub_nml['gamma']
+    # config["beam_grid"]["xmin"] = sub_nml['xmin']
+    # config["beam_grid"]["xmax"] = sub_nml['xmax']
+    # config["beam_grid"]["ymin"] = sub_nml['ymin']
+    # config["beam_grid"]["ymax"] = sub_nml['ymax']
+    # config["beam_grid"]["zmin"] = sub_nml['zmin']
+    # config["beam_grid"]["zmax"] = sub_nml['zmax']
+
+    # Only used when "beam_aligned" == True
+    if config["beam_grid"]["beam_aligned"]:
+        config["beam_grid"]["rstart"] = sub_nml['rstart']
+        config["beam_grid"]["length"] = sub_nml['length']
+        config["beam_grid"]["width"] = sub_nml['width']
+        config["beam_grid"]["height"] = sub_nml['height']
+    else:
+        # Only used when "beam_aligned" == False
+        config["beam_grid"]["alpha"] = sub_nml['alpha']
+        config["beam_grid"]["beta"] = sub_nml['beta']
+        config["beam_grid"]["gamma"] = sub_nml['gamma']
+        config["beam_grid"]["xmin"] = sub_nml['xmin']
+        config["beam_grid"]["xmax"] = sub_nml['xmax']
+        config["beam_grid"]["ymin"] = sub_nml['ymin']
+        config["beam_grid"]["ymax"] = sub_nml['ymax']
+        config["beam_grid"]["zmin"] = sub_nml['zmin']
+        config["beam_grid"]["zmax"] = sub_nml['zmax']
+        config["beam_grid"]["origin_uvw"] = sub_nml['origin_uvw']
 
     return config
 

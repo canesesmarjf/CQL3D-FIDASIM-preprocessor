@@ -1,36 +1,28 @@
 &fidasim_run_info
-  runid = "WHAM_example"
-  comment = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
+  runid = "ITER_neutral_wall_src"
+  comment = "Developing a simplified neutral wall source for ITER case"
 /
 
 &preprocessor_output
-  output_dir = "./Step_1_output/"
+  output_dir = "./Step_1b_output/"
 /
 
 &cql3d_input_files
-
-  input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
-  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
-  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
-  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
-  eqdsk_file_name = "eqdsk_wham_expander"
-  eqdsk_type = 1 !(1) mirror or (2) toroidal
-  cqlinput = "cqlinput"
-
-  !input_dir = "./Step_1_input/"
-  !plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
-  !f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
-  !f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
-  !equil_file_name = "eqdsk_wham_expander"
-  !cqlinput = "cqlinput"
+  input_dir = "./Step_1b_input/"
+  plasma_file_name = "" ! Standard CQL3D .nc file
+  f4d_ion_file_name = ""
+  f4d_electron_file_name = ""
+  eqdsk_file_name = "eqdsk_sym_ITER"
+  eqdsk_type = 2 !(1) mirror or (2) toroidal
+  cqlinput = "cqlinput_ITER_wall_src_APS2024"
 /
 
 &rz_interpolation_grid
-  rmin = 0.01 ! [cm]
-  rmax = 20.0 ! [cm]
+  rmin = 400.0  ! [cm]
+  rmax = 900.0 ! [cm]
   nr = 150
-  zmin = -200.0 ! [cm]
-  zmax = 200.0 ! [cm]
+  zmin = -350.0 ! [cm]
+  zmax = +350.0 ! [cm]
   nz = 100
 /
 
@@ -44,7 +36,7 @@
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 1
+  enable_nonthermal_calc = 0
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0
@@ -64,14 +56,14 @@
   beam_aligned = .False. ! Option between machine-aligned or beam-aligned
 
   ! Define number of cells for the beam grid:
-  nx = 50
-  ny = 50
-  nz = 80
+  nx = 70
+  ny = 100
+  nz = 100
 
   ! beam_aligned == .True.:
   ! -----------------------
   ! Radial start location of beam grid in R-Z coord system:
-  rstart = 50.0  ! [cm]
+  rstart = 1000.0  ! [cm]
   ! Dimensions of beam grid relative to beam's optical axis:
   length = 200.0 ! [cm] Along beam path
   width = 40.0   ! [cm] Normal to beam path
@@ -84,14 +76,14 @@
   origin_uvw(2) = 0.0
   origin_uvw(3) = 0.0
   ! Bryan-Tait angles required to construct the beam grid XYZ from UVW
-  alpha = 3.1416
-  beta = 1.5708
+  alpha = 0.0
+  beta = 0.0
   gamma = 0.0
   ! Dimensions of the beam grid in XYZ:
-  xmin = -100
-  xmax = +100
-  ymin = -20
-  ymax = +20
-  zmin = -20
-  zmax = +20
+  xmin = +300
+  xmax = +900
+  ymin = -200
+  ymax = +200
+  zmin = -400
+  zmax = +400
 /

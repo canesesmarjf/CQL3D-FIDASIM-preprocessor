@@ -37,8 +37,23 @@ def set_fidasim_dir(path):
     except ImportError as e:
         raise ImportError(f"Failed to import FIDASIM libraries: {e}")
 
-def construct_fields(file_name, grid, eqdsk_type):
+def construct_interpolation_grid(config):
+    print("     Running 'construct_interpolation_grid' ...")
+
+    rmin = config["rmin"]
+    rmax = config["rmax"]
+    nr = config["nr"]
+    zmin = config["zmin"]
+    zmax = config["zmax"]
+    nz = config["nr"]
+    grid = rz_grid(rmin,rmax,nr,zmin,zmax,nz)
+    return grid
+
+def construct_fields(config, grid):
     print("     running 'construct_fields' ...")
+
+    file_name = config["eqdsk_file_name"]
+    eqdsk_type = config["eqdsk_type"]
 
     if eqdsk_type == 1:
         poloidal = True
@@ -351,7 +366,7 @@ def construct_plasma_from_netcdf(config,grid,rho):
               "deni": deni, "denimp": denimp, "species_mass": species_mass,
               "nthermal": nthermal, "impurity_charge": impurity_charge,
               "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
-              "dene": dene, "zeff": zeff, "denn": denn}
+              "dene": dene, "zeff": zeff, "denn": denn, "time_index": valid_idx}
 
     return plasma
 
@@ -902,19 +917,14 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_f
     # subprocess.run("rm -f *.png", shell=True)
 
     # Define interpolation grid:
-    rmin = config["rmin"]
-    rmax = config["rmax"]
-    nr = config["nr"]
-    zmin = config["zmin"]
-    zmax = config["zmax"]
-    nz = config["nr"]
-    grid = rz_grid(rmin,rmax,nr,zmin,zmax,nz)
+    # ==========================
+    grid = construct_interpolation_grid(config)
 
     # Compute equil dict:
     # =====================
-    file_name = config["eqdsk_file_name"]
-    eqdsk_type = config["eqdsk_type"]
-    equil, rho = construct_fields(file_name, grid, eqdsk_type)
+    equil, rho = construct_fields(config, grid)
+    if plot_flag:
+        plot_fields(config,grid,rho, equil)
 
     # Compute the plasma dict:
     # ========================
@@ -924,7 +934,7 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_f
 
     # Compute fbm dict for ions:
     # =========================
-    # How to I enable reading both ion and electron f?
+    # How do I enable reading both ion and electron f?
     # What about for multiple ion species?
     fbm = construct_f4d(config,grid,rho,plot_flag,include_f4d)
 
@@ -954,50 +964,6 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_f
     ps = os.path.sep
     input_file = inputs['result_dir'].rstrip(ps) + ps + inputs['runid'] + '_inputs.dat'
     write_fidasim_input_namelist(input_file,inputs)
-
-    # Plot results:
-    # =============
-    if (plot_flag):
-        output_path = config["output_path"]
-
-        fig = plt.figure(1)
-        plt.contourf(grid["r2d"],grid["z2d"],equil["bz"].T)
-        plt.colorbar
-        plt.title("Bz_2D")
-        plt.ylabel("Z [cm]")
-        plt.xlabel("R [cm]")
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(output_path + 'Bz_2D.png')
-        # plt.show()
-
-        fig = plt.figure(2)
-        plt.contourf(grid["r2d"],grid["z2d"],equil["br"].T)
-        plt.colorbar
-        plt.title("Br_2D")
-        plt.ylabel("Z [cm]")
-        plt.xlabel("R [cm]")
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(output_path + 'Br_2D.png')
-        # plt.show()
-
-        fig = plt.figure(3)
-        levels = np.linspace(0.01, 1, 10)
-        contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels,colors='red',linewidths=1.0)
-        plt.clabel(contour_plot, inline=True, fontsize=8)
-
-        # plt.contour(grid["r2d"],grid["z2d"],rho,levels=np.linspace(0.01, 1.0, 16))
-        plt.colorbar
-        plt.title("flux_surfaces")
-        plt.ylabel("Z [cm]")
-        plt.xlabel("R [cm]")
-        fig.set_size_inches(4, 6)  # Width, Height in inches
-        plt.savefig(output_path + 'flux_surfaces.png')
-        # plt.show()
-
-        fig = plt.figure(4)
-        plt.contourf(grid['r2d'], grid['z2d'], plasma['dene'].T*plasma['mask'].T)
-        plt.contour(grid['r2d'], grid['z2d'], rho,levels=[1.0, 1.2, 1.3, 1.4])
-        fig.set_size_inches(4, 6)  # Width, Height in inches
 
 def construct_preprocessor_config(file_name):
 
@@ -1243,7 +1209,7 @@ def write_fidasim_input_namelist(filename, inputs):
     fs.utils.success("Namelist file created: {}\n".format(filename))
 
 def plot_plasma(config,grid,rho,plasma):
-
+    print("         Plotting plasma profiles:")
     # Plot mask:
     fig = plt.figure(5)
     plt.contourf(grid['r2d'], grid['z2d'], plasma['mask'])
@@ -1379,7 +1345,7 @@ def draw_nbi_aperture(ax, shape, center, axis, widy, widz):
         raise ValueError("Shape must be 1 (rectangular) or 2 (circular).")
 
 def plot_nbi(config,grid,rho,nbi):
-    print("Plot NBI geometry")
+    print("         Plot NBI geometry")
 
     # NBI optical path:
     # =================
@@ -1524,7 +1490,7 @@ def draw_rectangular_volume(ax, vertices_uvw, faces, alpha=0.3, color='b'):
     ax.add_collection3d(poly)
 
 def plot_beam_grid(fig,ax,config):
-    print("plotting beam grid:")
+    print("         plotting beam grid:")
 
     # Gather grid boundaries in XYZ coordinate system:
     xmin = config['beam_grid']['xmin']
@@ -1627,6 +1593,50 @@ def plot_beam_grid(fig,ax,config):
 
     # Save image:
     fig.savefig(config["output_path"] + 'NBI_geometry_VW.png')
+
+def plot_fields(config,grid,rho, equil):
+    print("         Plotting field related data:")
+
+    output_path = config["output_path"]
+
+    fig = plt.figure(1)
+    plt.contourf(grid["r2d"], grid["z2d"], equil["bz"].T)
+    plt.colorbar
+    plt.title("Bz_2D")
+    plt.ylabel("Z [cm]")
+    plt.xlabel("R [cm]")
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(output_path + 'Bz_2D.png')
+    # plt.show()
+
+    fig = plt.figure(2)
+    plt.contourf(grid["r2d"], grid["z2d"], equil["br"].T)
+    plt.colorbar
+    plt.title("Br_2D")
+    plt.ylabel("Z [cm]")
+    plt.xlabel("R [cm]")
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(output_path + 'Br_2D.png')
+    # plt.show()
+
+    fig = plt.figure(3)
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+
+    # plt.contour(grid["r2d"],grid["z2d"],rho,levels=np.linspace(0.01, 1.0, 16))
+    # plt.colorbar
+    plt.title("flux_surfaces")
+    plt.ylabel("Z [cm]")
+    plt.xlabel("R [cm]")
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(output_path + 'flux_surfaces.png')
+    # plt.show()
+
+    # fig = plt.figure(4)
+    # plt.contourf(grid['r2d'], grid['z2d'], plasma['dene'].T * plasma['mask'].T)
+    # plt.contour(grid['r2d'], grid['z2d'], rho, levels=[1.0, 1.2, 1.3, 1.4])
+    # fig.set_size_inches(4, 6)  # Width, Height in inches
 
 def main():
     print("Add some code")

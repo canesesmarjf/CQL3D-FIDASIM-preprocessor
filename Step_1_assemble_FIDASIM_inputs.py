@@ -4,15 +4,28 @@ import cql3d_to_fidasim_preprocessor as pp
 FIDASIM_dir = "/home/jfcm/Repos/FIDASIM/"
 pp.set_fidasim_dir(FIDASIM_dir)
 
+# Select scenario to run:
+scenario = "b"
+match scenario:
+    case "a" | 'a': # WHAM case
+        file_name = "./Step_1_input/preprocessor_config_1a.nml"
+        include_f4d = True
+        plasma_from_cqlinput = False
+        plot_flag = True
+    case "b" | 'b': # ITER wall source case
+        file_name = "./Step_1b_input/preprocessor_config_1b.nml"
+        include_f4d = False
+        plasma_from_cqlinput = True
+        plot_flag = True
+    case _:
+        print("Error: Incorrect scenario selected")
+        exit(0)
+
 # Read the configuration file which specifies how to run FIDASIM with CQL3D input files:
-file_name = "./Step_1_input/preprocessor_config_1a.nml"
 config = pp.read_preprocessor_config(file_name)
 
 # Create FIDASIM input files using PREFIDA:
-plot_flag = True
-include_f4d = False
-poloidal = True
-pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, poloidal)
+pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, plasma_from_cqlinput)
 
 print("End of script")
 
@@ -23,5 +36,4 @@ print("End of script")
 # To improve this we can (1) make it into a fotran subroutine or (2) find a more efficient way to perform the interpolation
 
 # Future changes:
-# Remove the plotting scripts from the main process and create a function that reads the FIDASIM input files and plots results
 # Consider performing the preprocessing all in fortran

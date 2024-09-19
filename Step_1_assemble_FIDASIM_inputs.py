@@ -22,10 +22,10 @@ match scenario:
         exit(0)
 
 # Read the configuration file which specifies how to run FIDASIM with CQL3D input files:
-config = pp.read_preprocessor_config(file_name)
+config = pp.construct_preprocessor_config(file_name)
 
 # Create FIDASIM input files using PREFIDA:
-pp.create_fidasim_inputs_from_cql3dm(config, plot_flag, include_f4d, plasma_from_cqlinput)
+pp.construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_from_cqlinput)
 
 print("End of script")
 

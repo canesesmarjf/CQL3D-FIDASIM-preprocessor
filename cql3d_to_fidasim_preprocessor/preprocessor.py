@@ -347,7 +347,7 @@ def construct_plasma_from_netcdf(config,grid,rho):
     #           "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
     #           "dene": dene, "zeff": zeff, "denn": denn, "profiles": nc_data}
 
-    plasma = {"time": nc_data['time'][-1], "data_source": config["plasma_file_name"], "mask": mask,
+    plasma = {"time": nc_data['time'][valid_idx], "data_source": config["plasma_file_name"], "mask": mask,
               "deni": deni, "denimp": denimp, "species_mass": species_mass,
               "nthermal": nthermal, "impurity_charge": impurity_charge,
               "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
@@ -368,16 +368,12 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
         # Get time stamp and mass for this dataset:
         src_nc = read_ncdf(nc_file_name)
-        time_stamp = src_nc['time'][-1]
+        threshold = 1e20
+        valid_indices = np.where(src_nc['densz1'][:, :, :, 1] < threshold)[0]  # Check tdim values
+        valid_idx = valid_indices[-1]  # Last valid index
+        time_stamp = src_nc['time'][valid_idx]
     else:
         print("         Using default timestamp, plasma_file_name at " + nc_file_name)
-
-    # try:
-    #     # Get time stamp and mass for this dataset:
-    #     src_nc = read_ncdf(config['plasma_file_name'])
-    #     time_stamp = src_nc['time'][-1]
-    # except:
-    #     print("Could not read " + config['plasma_file_name'])
 
     # Initialize fbm grid:
     # ==========================
@@ -683,9 +679,12 @@ def construct_inputs(config, nbi):
         current_fractions[ii] = nml['frsetup']['fbcur'][0][ii]
 
     if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
-        # Read standard cql3d output nc file:
-        nc = read_ncdf(nc_file_name)
-        time_stamp = nc['time'][-1]
+        # Get time stamp and mass for this dataset:
+        src_nc = read_ncdf(nc_file_name)
+        threshold = 1e20
+        valid_indices = np.where(src_nc['densz1'][:, :, :, 1] < threshold)[0]  # Check tdim values
+        valid_idx = valid_indices[-1]  # Last valid index
+        time_stamp = src_nc['time'][valid_idx]
     else:
         time_stamp = 0.0
 

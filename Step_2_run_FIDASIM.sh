@@ -28,8 +28,9 @@ confirm_selections() {
 # ==========================================================================
 # Set default input file:
 INPUT_FILE_ROOT=$(pwd)
-# INPUT_FILE_NAME=/Step_1_output/WHAM_example_inputs.dat
-INPUT_FILE_NAME=/Step_1b_output/ITER_neutral_wall_src_inputs.dat
+INPUT_FILE_NAME=/Step_1_output/WHAM_example_inputs.dat
+#INPUT_FILE_NAME=/Step_1_output_temp/WHAM_example_inputs.dat
+#INPUT_FILE_NAME=/Step_1b_output/ITER_neutral_wall_src_inputs.dat
 INPUT_FILE=$INPUT_FILE_ROOT$INPUT_FILE_NAME
 
 # Set default values:

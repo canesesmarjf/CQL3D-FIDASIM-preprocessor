@@ -5,6 +5,7 @@
 
 &preprocessor_output
   output_dir = "./Step_1_output/"
+  ! output_dir = "./Step_1_output_temp/"
 /
 
 &cql3d_input_files
@@ -38,8 +39,8 @@
   impurity_charge = 6
   rho_LCFS = 1.0
   dene_LCFS = 1e6
-  te_LCFS = 0.001
-  ti_LCFS = 0.001
+  te_LCFS = 0.01
+  ti_LCFS = 0.01
   zeff_LCFS = 1.0
 /
 
@@ -53,10 +54,10 @@
 
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
-  n_nbi = 5e4
-  n_birth = 5e4
-  n_dcx = 50e4
-  n_halo = 5e4
+  n_nbi = 100e3
+  n_birth = 500e3
+  n_dcx = 500e3
+  n_halo = 500e3
 /
 
 &beam_grid

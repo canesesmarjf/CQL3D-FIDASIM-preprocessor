@@ -37,10 +37,10 @@
 
 &beam_physics_switches
   enable_nonthermal_calc = 0
-  calc_sink = 1
+  calc_sink = 0
   calc_birth = 1
-  calc_dcx = 0
-  calc_halo = 0
+  calc_dcx = 1
+  calc_halo = 1
 /
 
 &monte_carlo_particles
@@ -48,7 +48,7 @@
   n_nbi = 5e4
   n_birth = 5e4
   n_dcx = 50e4
-  n_halo = 5e4
+  n_halo = 50e4
 /
 
 &beam_grid
@@ -56,7 +56,7 @@
   beam_aligned = .False. ! Option between machine-aligned or beam-aligned
 
   ! Define number of cells for the beam grid:
-  nx = 70
+  nx = 100
   ny = 100
   nz = 100
 

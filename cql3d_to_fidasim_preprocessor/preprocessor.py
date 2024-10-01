@@ -183,7 +183,7 @@ def construct_plasma_from_cqlinput(config,grid,rho):
     # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
-    max_rho = 1.2
+    max_rho = 1.01
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
@@ -1443,7 +1443,7 @@ def plot_nbi(config,grid,rho,nbi):
 
     # Save image:
     ax.set_title('NBI geometry')
-    fig.set_size_inches(4, 6)  # Width, Height in inches
+    fig.set_size_inches(9, 9)  # Width, Height in inches
     fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
 
     # Set the view:
@@ -1564,7 +1564,7 @@ def plot_beam_grid(fig,ax,config):
 
     # Save image:
     ax.set_title('NBI + beam grid geometry')
-    fig.set_size_inches(4, 6)  # Width, Height in inches
+    fig.set_size_inches(9, 9)  # Width, Height in inches
     fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
 
     # Set the view:
@@ -1600,7 +1600,7 @@ def plot_fields(config,grid,rho, equil):
     output_path = config["output_path"]
 
     fig = plt.figure(1)
-    plt.contourf(grid["r2d"], grid["z2d"], equil["bz"].T)
+    plt.contourf(grid["r2d"], grid["z2d"], equil["bz"])
     plt.colorbar
     plt.title("Bz_2D")
     plt.ylabel("Z [cm]")
@@ -1610,7 +1610,7 @@ def plot_fields(config,grid,rho, equil):
     # plt.show()
 
     fig = plt.figure(2)
-    plt.contourf(grid["r2d"], grid["z2d"], equil["br"].T)
+    plt.contourf(grid["r2d"], grid["z2d"], equil["br"])
     plt.colorbar
     plt.title("Br_2D")
     plt.ylabel("Z [cm]")

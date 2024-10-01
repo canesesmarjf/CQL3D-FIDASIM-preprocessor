@@ -5,7 +5,7 @@ FIDASIM_dir = "/home/jfcm/Repos/FIDASIM/"
 pp.set_fidasim_dir(FIDASIM_dir)
 
 # Select scenario to run:
-scenario = "b"
+scenario = "a"
 match scenario:
     case "a" | 'a': # WHAM case
         file_name = "./Step_1_input/preprocessor_config_1a.nml"

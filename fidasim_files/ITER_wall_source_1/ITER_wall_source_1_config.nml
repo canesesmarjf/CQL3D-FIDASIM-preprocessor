@@ -1,20 +1,23 @@
 &fidasim_run_info
-  runid = "ITER_neutral_wall_src"
+  runid = "ITER_wall_source_1"
   comment = "Developing a simplified neutral wall source for ITER case"
 /
 
 &preprocessor_output
-  output_dir = "./Step_1b_output/"
+  output_dir = "" ! Leave empty to direct output to where this config file is located
 /
 
 &cql3d_input_files
-  input_dir = "./Step_1b_input/"
-  plasma_file_name = "" ! Standard CQL3D .nc file
-  f4d_ion_file_name = ""
-  f4d_electron_file_name = ""
+
+  input_dir = "./cql3d_files/ITER_wall_source_1/"
+  cqlinput = "cqlinput_ITER_wall_src_APS2024"
   eqdsk_file_name = "eqdsk_sym_ITER"
   eqdsk_type = 2 !(1) mirror or (2) toroidal
-  cqlinput = "cqlinput_ITER_wall_src_APS2024"
+  plasma_from_cqlinput = 1
+  plasma_file_name = ""
+  include_f4d = 0
+  f4d_ion_file_name = ""
+  f4d_electron_file_name = ""
 /
 
 &rz_interpolation_grid

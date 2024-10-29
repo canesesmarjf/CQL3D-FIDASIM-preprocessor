@@ -1,29 +1,34 @@
 &fidasim_run_info
-  runid = "WHAM_example"
+  runid = "WHAM_example_1"
   comment = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
 /
 
 &preprocessor_output
-  output_dir = "./Step_1_output/"
-  ! output_dir = "./Step_1_output_temp/"
+  output_dir = "" ! Leave empty to direct output to where this config file is located
 /
 
 &cql3d_input_files
 
-  input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
-  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
-  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
-  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
+  ! input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
+  ! cqlinput = "cqlinput"
+  ! eqdsk_file_name = "eqdsk_wham_expander"
+  ! eqdsk_type = 1 !(1) mirror or (2) toroidal
+  ! plasma_from_cqlinput = 1
+  ! plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
+  ! include_f4d = 1
+  ! f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
+  ! f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
+
+
+  input_dir = "./cql3d_files/WHAM_example_1/"
+  cqlinput = "cqlinput"
   eqdsk_file_name = "eqdsk_wham_expander"
   eqdsk_type = 1 !(1) mirror or (2) toroidal
-  cqlinput = "cqlinput"
-
-  !input_dir = "./Step_1_input/"
-  !plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
-  !f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
-  !f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
-  !equil_file_name = "eqdsk_wham_expander"
-  !cqlinput = "cqlinput"
+  plasma_from_cqlinput = 0
+  plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120.nc"
+  include_f4d = 1
+  f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_001.nc"
+  f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_f4d_002.nc"
 /
 
 &rz_interpolation_grid

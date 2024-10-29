@@ -906,7 +906,7 @@ def construct_nbi(config):
 
     return nbi
 
-def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_from_cqlinput):
+def construct_fidasim_inputs_from_cql3d(config, plot_flag):
 
     print("running 'construct_fidasim_inputs_from_cql3d' ...")
 
@@ -928,7 +928,7 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_f
 
     # Compute the plasma dict:
     # ========================
-    plasma = construct_plasma(config,grid,rho,plot_flag,plasma_from_cqlinput)
+    plasma = construct_plasma(config,grid,rho,plot_flag,config['plasma_from_cqlinput'])
     if plot_flag:
         plot_plasma(config,grid,rho,plasma)
 
@@ -936,7 +936,7 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag, include_f4d, plasma_f
     # =========================
     # How do I enable reading both ion and electron f?
     # What about for multiple ion species?
-    fbm = construct_f4d(config,grid,rho,plot_flag,include_f4d)
+    fbm = construct_f4d(config,grid,rho,plot_flag,config['include_f4d'])
 
     # Compute nbi dict from cqlinput:
     # ===============================
@@ -991,11 +991,22 @@ def construct_preprocessor_config(file_name):
     # CQL3DM related files:
     # (Assume we only have a single ion species)
     sub_nml = nml['cql3d_input_files']
-    input_dir = sub_nml['input_dir']
+    config['input_dir'] = sub_nml['input_dir']
+    input_dir =  config['input_dir']
+    config["cqlinput"] = input_dir + sub_nml['cqlinput']
     config["eqdsk_file_name"] = input_dir + sub_nml['eqdsk_file_name']
     config["eqdsk_type"] = sub_nml['eqdsk_type']
-    config["cqlinput"] = input_dir + sub_nml['cqlinput']
+
+    if "plasma_from_cqlinput" in sub_nml:
+        config["plasma_from_cqlinput"] = sub_nml['plasma_from_cqlinput']
+    else:
+        config["plasma_from_cqlinput"] = False
     config["plasma_file_name"] = input_dir + sub_nml['plasma_file_name']
+
+    if "include_f4d" in sub_nml:
+        config["include_f4d"] = sub_nml['include_f4d']
+    else:
+        config["include_f4d"] = False
     config["f4d_ion_file_name"] = input_dir + sub_nml['f4d_ion_file_name']
     config["f4d_electron_file_name"] = input_dir + sub_nml['f4d_electron_file_name']
 
@@ -1011,6 +1022,8 @@ def construct_preprocessor_config(file_name):
     # Define path to output directory:
     # (This is where you want the FIDASIM HDF5 files to be written to)
     config['output_path'] = nml['preprocessor_output']['output_dir']
+    if not config['output_path']:
+        config['output_path'] = os.path.dirname(file_name) + "/"
 
     # Beam physics switches:
     sub_nml = nml['beam_physics_switches']

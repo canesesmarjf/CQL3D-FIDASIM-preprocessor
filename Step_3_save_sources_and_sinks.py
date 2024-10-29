@@ -1,19 +1,38 @@
-# In this script, we read the birth.h5 file produced and create a .dat text file that can be read back into CQL3DM
+# In this script, we read the birth.h5 file produced by FIDASIM and create a .dat text file that can be read back into CQL3D
+
 import numpy as np
 import matplotlib as mp
 import matplotlib.pyplot as plt
 import scipy.constants as consts
 import h5py
+import os
+import sys
+import argparse
+
+# Get command line arguments:
+# ======================================================================================================================
+description = "This script reads CQL3D files and processes them to make FIDASIM input files"
+parser = argparse.ArgumentParser(description=description)
+parser.add_argument('--run-dir', type=str, help="Directory where the FIDASIM output HDF5 files are located")
+args = parser.parse_args()
 
 # birth point file path:
-data_dir = "./Step_1_output/"
-file_path_births = data_dir + "WHAM_example_birth.h5"
+run_dir = args.run_dir.rstrip('/')
+run_id = os.path.basename(os.path.normpath(run_dir))
+file_path_births = run_dir + "/" + run_id + "_birth.h5"
 
+# sink point file path:
+file_path_sinks = run_dir + "/" + run_id + "_sinks.h5"
+
+# Define functions:
+# ======================================================================================================================
 def print_hdf5_structure(name, obj):
     print(name)
     for key, value in obj.attrs.items():
         print(f"  Attribute {key}: {value}")
 
+# Extract data:
+# ======================================================================================================================
 with h5py.File(file_path_births, 'r') as file:
     # file.visititems(print_hdf5_structure)
     # Particle data:
@@ -24,6 +43,7 @@ with h5py.File(file_path_births, 'r') as file:
     vi = file['vi'][:] # [cm/s]
 
 # Extract particle positions:
+# ======================================================================================================================
 R = ri[:,0]
 Z = ri[:,1]
 Phi = ri[:,2]
@@ -33,16 +53,19 @@ X = R*np.cos(Phi)
 Y = R*np.sin(Phi)
 
 # Extract particle velocities:
+# ======================================================================================================================
 vr = vi[:,0]
 vz = vi[:,1]
 vphi = vi[:,2]
 v_perp = np.sqrt( vr**2 + vphi**2)
 
 # Convert positions to cartesian coordinates:
+# ======================================================================================================================
 vx = vr*np.cos(Phi) - vphi*np.sin(Phi)
 vy = vr*np.sin(Phi) + vphi*np.cos(Phi)
 
 # Calculate absorbed power:
+# ======================================================================================================================
 flux = np.sum(weight) # [ions/sec]
 nbi_abs_power = np.sum(energy*weight*consts.e) # [W]
 nbi_inj_power = 100e3 # [W]
@@ -53,7 +76,7 @@ print(f"Number of markers used: {n_birth}")
 print(f"Total flux: {flux:.6e} [p/s]")
 
 # Saving file with birth points:
-# ------------------------------
+# ======================================================================================================================
 header =\
 f"""host=sunfire08.pppl.gov                     date=09-Oct-2012 08:54:46
 "AC" FILE 128742N04.DATA9  TIME =  3.5229E-01 +/-  3.0000E-03 sec.
@@ -80,7 +103,8 @@ Akima Hermite spline interpolation has been used
 x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)     weight(ions/s)
 <start-of-data>"""
 
-# Combine the arrays into a single 2D array
+# Combine the arrays into a single 2D array:
+# ======================================================================================================================
 # data = np.column_stack((birth["pos"][:,0], birth["pos"][:,1], birth["pos"][:,2], birth["v"][:,0], birth["v"][:,1], birth["v"][:,2]))
 data = np.column_stack((X,Y,Z,vx,vy,vz,weight))
 
@@ -93,12 +117,13 @@ precision = 6  # Adjust this to your desired precision
 fmt = f'% .{precision}e'
 
 # Specify the filename where you want to save the data
-filename = data_dir + "birth_points_FIDASIM_f1.dat"
+filename = run_dir + "/" + "birth_points_FIDASIM_f1.dat"
 
 # Combine the empty header lines with the data
 # header = "\n".join(empty_header_lines)
 
-# Save the data to the file with the empty header and specified precision
+# Save the data to the file with the empty header and specified precision:
+# ======================================================================================================================
 np.savetxt(filename, data, delimiter=" ", fmt=fmt, header=header, comments="")
 
 

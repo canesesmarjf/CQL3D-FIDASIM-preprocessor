@@ -1051,20 +1051,6 @@ def construct_preprocessor_config(file_name):
     config["beam_grid"]["ny"] = sub_nml['ny']
     config["beam_grid"]["nz"] = sub_nml['nz']
 
-    # config["beam_grid"]["rstart"] = -1
-    # config["beam_grid"]["length"] = -1
-    # config["beam_grid"]["width"] = -1
-    # config["beam_grid"]["height"] = -1
-    # config["beam_grid"]["alpha"] = -1
-    # config["beam_grid"]["beta"] = -1
-    # config["beam_grid"]["gamma"] = sub_nml['gamma']
-    # config["beam_grid"]["xmin"] = sub_nml['xmin']
-    # config["beam_grid"]["xmax"] = sub_nml['xmax']
-    # config["beam_grid"]["ymin"] = sub_nml['ymin']
-    # config["beam_grid"]["ymax"] = sub_nml['ymax']
-    # config["beam_grid"]["zmin"] = sub_nml['zmin']
-    # config["beam_grid"]["zmax"] = sub_nml['zmax']
-
     # Only used when "beam_aligned" == True
     if config["beam_grid"]["beam_aligned"]:
         config["beam_grid"]["rstart"] = sub_nml['rstart']

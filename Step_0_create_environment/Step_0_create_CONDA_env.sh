@@ -106,7 +106,7 @@ if conda env list | grep -q "^FIDASIM_env"; then
     echo "The environment 'FIDASIM_env' already exists. Skipping environment creation."
 else
     # Create environment from environment.yml
-    conda env create -f ./Step_1_input/environment.yml
+    conda env create -f ./environment.yml
 fi
 
 # Optionally activate the environment if --activate was specified:

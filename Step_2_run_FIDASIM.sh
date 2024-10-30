@@ -5,7 +5,7 @@
 
 # Default values for options
 executable=""
-input_file=""
+run_dir=""
 parallel_mode="openmp"
 num_threads=0
 verbose=false
@@ -17,7 +17,7 @@ usage() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "  -i, --input-file FILE           Path to the input file (required, must be .dat)"
+    echo "      --run-dir DIR               Path to the run directory. Script will search for *.dat file (required)"
     echo "  -e, --executable FILE           Path to the executable file (default: \$FIDASIM_DIR/fidasim)"
     echo "  -p, --parallel-mode MODE        Parallelization mode: 'openmp' or 'mpi' (default: openmp)"
     echo "  -n, --num-threads NUM           Number of threads/ranks for OpenMP/MPI (default: 14)"
@@ -27,8 +27,8 @@ usage() {
     echo "      --help                      Show this help message and exit"
     echo ""
     echo "Examples:"
-    echo "  $0 -i input.dat -e /path/to/executable -p mpi -n 16 --debug"
-    echo "  $0 -i input.dat --parallel-mode openmp --num-threads 8 --verbose --debug"
+    echo "  $0 -i path/to/run_dir -e /path/to/executable -p mpi -n 16 --debug"
+    echo "  $0 -i path/to/run_dir/ --parallel-mode openmp --num-threads 8 --verbose --debug"
     echo ""
     echo "If -e is not provided, the script will use the default executable \$FIDASIM_DIR/fidasim"
     exit 1
@@ -48,7 +48,7 @@ calculate_num_threads() {
 # Function to display the setup
 display_setup() {
     echo "Executable: $executable"
-    echo "Input file: $input_file"
+    echo "run directory: $run_dir"
     echo "Parallelization mode: $parallel_mode"
     echo "Number of threads/ranks: $num_threads"
     echo "Debug mode: $debug"
@@ -71,7 +71,7 @@ check_executable() {
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -e|--executable) executable="$2"; shift ;;
-        -i|--input-file) input_file="$2"; shift ;;
+        --run-dir) run_dir="$2"; shift ;;
         -p|--parallel-mode) parallel_mode="$2"; shift ;;
         -n|--num-threads) num_threads="$2"; shift ;;
         -v|--verbose) verbose=true ;;
@@ -100,11 +100,11 @@ if [[ "$parallel_mode" != "openmp" && "$parallel_mode" != "mpi" ]]; then
 fi
 
 # Check if input file is provided
+run_id=$(basename "$run_dir")
+input_file="${run_dir}/${run_id}_inputs.dat"
 if [[ -z "$input_file" ]]; then
-    echo "Error: FIDASIM *.dat input file is required."
+    echo "Error: FIDASIM *.dat input file not found."
     usage
-elif [[ "$input_file" != *.dat ]]; then
-    echo "Error: Input file must be a FIDASIM .dat file."
     exit 1
 fi
 

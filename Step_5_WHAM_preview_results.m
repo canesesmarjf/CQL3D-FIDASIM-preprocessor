@@ -8,7 +8,7 @@ read_birth = 1;
 save_neutral_figs = 1;
 calc_impact_vectors = 1;
 
-scenario = 3;
+scenario = 4;
 
 switch scenario
     case 1
@@ -29,6 +29,12 @@ switch scenario
         output_dir = fidasim_files_dir;
         cql3d_files_dir = "./cql3d_files/" + runid + "/";
         plasma_file_name = "none";
+    case 4
+        runid = "WHAM_no_f4d";
+        fidasim_files_dir  = "./fidasim_files/" + runid + "/";
+        output_dir = fidasim_files_dir;
+        cql3d_files_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/";
+        plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc";           
     case 99 % NEEDS to be fixed!!
         runid = "WHAM_example";
         fidasim_files_dir  = "../run_archive/2024_09_05/fidasim_data/Step_1_output/";

@@ -1,5 +1,4 @@
 &fidasim_run_info
-  runid = "WHAM_example_1"
   comment = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
 /
 

@@ -965,18 +965,25 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     input_file = inputs['result_dir'].rstrip(ps) + ps + inputs['runid'] + '_inputs.dat'
     write_fidasim_input_namelist(input_file,inputs)
 
-def construct_preprocessor_config(file_name):
+def construct_preprocessor_config(run_dir):
+
+    # Check if configuration file exists:
+    run_id = os.path.basename(os.path.normpath(run_dir))
+    config_file = run_dir.rstrip('/') + "/" + run_id + "_config.nml"
+    if not os.path.exists(config_file):
+        print(f"Error: The file '{config_file}' does not exist.")
+        sys.exit(1)
 
     # Read contents of the preprocessor configuration namelist file:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nml = f90nml.read(file_name)
+        nml = f90nml.read(config_file)
 
     # Initialize user input dictionary:
     config = {}
 
     # Metadata for fidasim run:
-    config["runid"] = nml['fidasim_run_info']['runid']
+    config["runid"] = run_id
     config["comment"] = nml['fidasim_run_info']['comment']
 
     # R-Z Interpolation grid:
@@ -1023,7 +1030,7 @@ def construct_preprocessor_config(file_name):
     # (This is where you want the FIDASIM HDF5 files to be written to)
     config['output_path'] = nml['preprocessor_output']['output_dir']
     if not config['output_path']:
-        config['output_path'] = os.path.dirname(file_name) + "/"
+        config['output_path'] = os.path.dirname(config_file) + "/"
 
     # Beam physics switches:
     sub_nml = nml['beam_physics_switches']

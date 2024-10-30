@@ -1,5 +1,4 @@
 &fidasim_run_info
-  runid = "ITER_wall_source_1"
   comment = "Developing a simplified neutral wall source for ITER case"
 /
 

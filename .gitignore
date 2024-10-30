@@ -14,7 +14,7 @@
 *.png
 
 # Ignore all .pdf files in fidasim_files/:
-./fidasim_files/**/*.pdf
+fidasim_files/**/*.pdf
 
 # Ignore all files relating to pycharm env:
 .idea/

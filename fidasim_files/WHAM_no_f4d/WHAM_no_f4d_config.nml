@@ -1,5 +1,5 @@
 &fidasim_run_info
-  comment = "FIDASIM NBI thermal deposition in WHAM with halo physics enabled"
+  comment = "FIDASIM NBI thermal deposition in WHAM with sink calculation but on thermal ion distribution function"
 /
 
 &preprocessor_output
@@ -7,7 +7,6 @@
 /
 
 &cql3d_input_files
-
   input_dir = "../Step_6_WHAM_FIDASIM_cases_Yuri/Step_1_input/"
   cqlinput = "cqlinput"
   eqdsk_file_name = "eqdsk_wham_expander"
@@ -38,7 +37,7 @@
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 1
+  enable_nonthermal_calc = 0
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0

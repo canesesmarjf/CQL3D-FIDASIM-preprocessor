@@ -7,6 +7,7 @@
 
 # Case to run:
 RUN_ID="WHAM_example_2"
+RUN_ID="WHAM_no_f4d"
 RUN_DIR=./fidasim_files/$RUN_ID
 
 # ENV variables:
@@ -19,7 +20,7 @@ PREPROCESSOR_DIR=$PREPROCESSOR_DIR
 
 # Step 1: Run preprocessor script to produce input files for FIDASIM:
 # ============================================================
-python $PREPROCESSOR_DIR/Step_1_assemble_FIDASIM_inputs.py --config-dir $RUN_DIR --fidasim-dir $FIDASIM_DIR --plot
+python $PREPROCESSOR_DIR/Step_1_assemble_FIDASIM_inputs.py --run-dir $RUN_DIR --fidasim-dir $FIDASIM_DIR --plot
 if [ $? -ne 0 ]; then
     echo "Error: Step_1_assemble_FIDASIM_inputs.py failed"
     exit 1

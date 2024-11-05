@@ -8,21 +8,25 @@ import h5py
 import os
 import sys
 import argparse
+import f90nml
+import warnings
 
 # Get command line arguments:
 # ======================================================================================================================
 description = "This script reads CQL3D files and processes them to make FIDASIM input files"
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('--run-dir', type=str, help="Directory where the FIDASIM output HDF5 files are located")
+parser.add_argument('--fida-run-dir', type=str, help="Directory where the FIDASIM output HDF5 files are located")
+parser.add_argument('--cql-run-dir', type=str, help="Directory where the CQL3D run files are located")
+
 args = parser.parse_args()
 
 # birth point file path:
-run_dir = args.run_dir.rstrip('/')
-run_id = os.path.basename(os.path.normpath(run_dir))
-file_path_births = run_dir + "/" + run_id + "_birth.h5"
+fida_run_dir = args.fida_run_dir.rstrip('/')
+run_id = os.path.basename(os.path.normpath(fida_run_dir))
+file_path_births = fida_run_dir + "/" + run_id + "_birth.h5"
 
 # sink point file path:
-file_path_sinks = run_dir + "/" + run_id + "_sinks.h5"
+file_path_sinks = fida_run_dir + "/" + run_id + "_sinks.h5"
 
 # Define functions:
 # ======================================================================================================================
@@ -41,6 +45,10 @@ with h5py.File(file_path_births, 'r') as file:
     weight = file['weight'][:] # [ions/s]
     ri = file['ri'][:] # [cm]
     vi = file['vi'][:] # [cm/s]
+
+print("=================================================")
+print("Writing sources and sinks into text files...")
+print("=================================================")
 
 # Extract particle positions:
 # ======================================================================================================================
@@ -68,12 +76,30 @@ vy = vr*np.sin(Phi) + vphi*np.cos(Phi)
 # ======================================================================================================================
 flux = np.sum(weight) # [ions/sec]
 nbi_abs_power = np.sum(energy*weight*consts.e) # [W]
-nbi_inj_power = 100e3 # [W]
+
+# Get injected power:
+# ======================================================================================================================
+# Read cqlinput to get the NBI power injected:
+
+# Get cql_config:
+cql_run_dir = args.cql_run_dir.rstrip('/')
+cql_config = cql_run_dir + "/" + run_id + "_cql_config.nml"
+nml = f90nml.read(cql_config)
+
+# Read cqlinput:
+cqlinput = args.cql_run_dir + "/" + nml['cql3d_files']['cqlinput']
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    nml = f90nml.read(cqlinput)
+
+# Assign power:
+nbi_inj_power = nml['frsetup']['bptor'][0] # [W]
 
 print("Injected NBI power: " + str(nbi_inj_power*1e-6) + " [MW]" )
 print("Absorbed NBI power: " + str(nbi_abs_power*1e-6) + " [MW]" )
 print(f"Number of markers used: {n_birth}")
 print(f"Total flux: {flux:.6e} [p/s]")
+print("=================================================")
 
 # Saving file with birth points:
 # ======================================================================================================================
@@ -105,7 +131,6 @@ x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)  
 
 # Combine the arrays into a single 2D array:
 # ======================================================================================================================
-# data = np.column_stack((birth["pos"][:,0], birth["pos"][:,1], birth["pos"][:,2], birth["v"][:,0], birth["v"][:,1], birth["v"][:,2]))
 data = np.column_stack((X,Y,Z,vx,vy,vz,weight))
 
 # Define the precision (number of decimal places)
@@ -117,7 +142,7 @@ precision = 6  # Adjust this to your desired precision
 fmt = f'% .{precision}e'
 
 # Specify the filename where you want to save the data
-filename = run_dir + "/" + "birth_points_FIDASIM_f1.dat"
+filename = cql_run_dir + "/" + "Ion_birth_points_FIDASIM.dat"
 
 # Combine the empty header lines with the data
 # header = "\n".join(empty_header_lines)

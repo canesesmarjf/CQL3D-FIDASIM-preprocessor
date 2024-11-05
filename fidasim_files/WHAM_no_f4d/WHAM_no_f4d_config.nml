@@ -13,7 +13,7 @@
   eqdsk_type = 1 !(1) mirror or (2) toroidal
   plasma_from_cqlinput = 0
   plasma_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5.nc"
-  include_f4d = 1
+  include_f4d = 0
   f4d_ion_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_001.nc"
   f4d_electron_file_name = "WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5_f4d_002.nc"
 /
@@ -47,7 +47,7 @@
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
   n_nbi = 100e3
-  n_birth = 500e3
+  n_birth = 100e3
   n_dcx = 500e3
   n_halo = 500e3
 /

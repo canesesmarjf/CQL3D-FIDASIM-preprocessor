@@ -5,19 +5,21 @@
 
 # Default values for options
 executable=""
-run_dir=""
+fida_run_dir=""
 parallel_mode="openmp"
 num_threads=0
 verbose=false
 prompt=false
 debug=false
 
+# FUNCTIONS:
+# ======================================================================================================================
 # Function to print usage
 usage() {
     echo "Usage: $0 [options]"
     echo ""
     echo "Options:"
-    echo "      --run-dir DIR               Path to the run directory. Script will search for *.dat file (required)"
+    echo "      --fida-run-dir DIR          Path to the run directory. Script will search for *.dat file (required)"
     echo "  -e, --executable FILE           Path to the executable file (default: \$FIDASIM_DIR/fidasim)"
     echo "  -p, --parallel-mode MODE        Parallelization mode: 'openmp' or 'mpi' (default: openmp)"
     echo "  -n, --num-threads NUM           Number of threads/ranks for OpenMP/MPI (default: 14)"
@@ -48,7 +50,7 @@ calculate_num_threads() {
 # Function to display the setup
 display_setup() {
     echo "Executable: $executable"
-    echo "run directory: $run_dir"
+    echo "run directory: $fida_run_dir"
     echo "Parallelization mode: $parallel_mode"
     echo "Number of threads/ranks: $num_threads"
     echo "Debug mode: $debug"
@@ -67,11 +69,14 @@ check_executable() {
     fi
 }
 
+# START OF PROGRAM:
+# ======================================================================================================================
+
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -e|--executable) executable="$2"; shift ;;
-        --run-dir) run_dir="$2"; shift ;;
+        --fida-run-dir) fida_run_dir="$2"; shift ;;
         -p|--parallel-mode) parallel_mode="$2"; shift ;;
         -n|--num-threads) num_threads="$2"; shift ;;
         -v|--verbose) verbose=true ;;
@@ -100,8 +105,8 @@ if [[ "$parallel_mode" != "openmp" && "$parallel_mode" != "mpi" ]]; then
 fi
 
 # Check if input file is provided
-run_id=$(basename "$run_dir")
-input_file="${run_dir}/${run_id}_inputs.dat"
+run_id=$(basename "$fida_run_dir")
+input_file="${fida_run_dir}/${run_id}_inputs.dat"
 if [[ -z "$input_file" ]]; then
     echo "Error: FIDASIM *.dat input file not found."
     usage
@@ -141,6 +146,7 @@ if $prompt; then
     echo ""
     echo "Check inputs: =================================="
     read -p "Does this look correct? (Y/N): " confirmation
+    confirmation=${confirmation^^}  # Convert input to uppercase
     if [[ "$confirmation" != "Y" ]]; then
         echo "Aborting the script."
         exit 1

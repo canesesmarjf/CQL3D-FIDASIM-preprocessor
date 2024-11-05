@@ -187,13 +187,7 @@ def construct_plasma_from_cqlinput(config,grid,rho):
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
-    # plasma = {"time": 0.0, "data_source": config["plasma_file_name"], "mask": mask,
-    #           "deni": deni, "denimp": denimp, "species_mass": species_mass,
-    #           "nthermal": nthermal, "impurity_charge": impurity_charge,
-    #           "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
-    #           "dene": dene, "zeff": zeff, "denn": denn, "profiles": nml}
-
-    plasma = {"time": 0.0, "data_source": config["plasma_file_name"], "mask": mask,
+    plasma = {"time": 0.0, "data_source": config["cqlinput"], "mask": mask,
               "deni": deni, "denimp": denimp, "species_mass": species_mass,
               "nthermal": nthermal, "impurity_charge": impurity_charge,
               "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
@@ -965,29 +959,37 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     input_file = inputs['result_dir'].rstrip(ps) + ps + inputs['runid'] + '_inputs.dat'
     write_fidasim_input_namelist(input_file,inputs)
 
-def construct_preprocessor_config(run_dir):
+def construct_preprocessor_config(fida_run_dir, cql_run_dir):
 
-    # Check if configuration file exists:
-    run_id = os.path.basename(os.path.normpath(run_dir))
-    config_file = run_dir.rstrip('/') + "/" + run_id + "_config.nml"
-    if not os.path.exists(config_file):
-        print(f"Error: The file '{config_file}' does not exist.")
+    # Check if fidasim run configuration file exists:
+    fida_run_id = os.path.basename(os.path.normpath(fida_run_dir))
+    fida_config_file = fida_run_dir.rstrip('/') + "/" + fida_run_id + "_config.nml"
+    if not os.path.exists(fida_config_file):
+        print(f"Error: The fidasim run configuration file '{fida_config_file}' does not exist.")
         sys.exit(1)
 
-    # Read contents of the preprocessor configuration namelist file:
+    # Check if cql run configuration file exists:
+    cql_run_id = os.path.basename(os.path.normpath(cql_run_dir))
+    cql_config_file = cql_run_dir.rstrip('/') + "/" + cql_run_id + "_cql_config.nml"
+    if not os.path.exists(cql_config_file):
+        print(f"Error: The cql3d run configuration file '{cql_config_file}' does not exist.")
+        sys.exit(1)
+
+    # Read contents of the run configuration namelist files:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nml = f90nml.read(config_file)
+        fida_nml = f90nml.read(fida_config_file)
+        cql_nml  = f90nml.read(cql_config_file)
 
     # Initialize user input dictionary:
     config = {}
 
     # Metadata for fidasim run:
-    config["runid"] = run_id
-    config["comment"] = nml['fidasim_run_info']['comment']
+    config["runid"] = fida_run_id
+    config["comment"] = fida_nml['fidasim_run_info']['comment']
 
     # R-Z Interpolation grid:
-    sub_nml = nml['rz_interpolation_grid']
+    sub_nml = fida_nml['rz_interpolation_grid']
     config["rmin"] = sub_nml['rmin']
     config["rmax"] = sub_nml['rmax']
     config["nr"] = sub_nml['nr']
@@ -997,28 +999,43 @@ def construct_preprocessor_config(run_dir):
 
     # CQL3DM related files:
     # (Assume we only have a single ion species)
-    sub_nml = nml['cql3d_input_files']
-    config['input_dir'] = sub_nml['input_dir']
-    input_dir =  config['input_dir']
-    config["cqlinput"] = input_dir + sub_nml['cqlinput']
-    config["eqdsk_file_name"] = input_dir + sub_nml['eqdsk_file_name']
-    config["eqdsk_type"] = sub_nml['eqdsk_type']
+    # sub_nml = fida_nml['cql3d_input_files']
+    # config['input_dir'] = sub_nml['input_dir']
+    # input_dir =  config['input_dir']
+    # config["cqlinput"] = input_dir + sub_nml['cqlinput']
 
-    if "plasma_from_cqlinput" in sub_nml:
-        config["plasma_from_cqlinput"] = sub_nml['plasma_from_cqlinput']
+    config['input_dir'] = cql_run_dir
+    config["cqlinput"] = cql_run_dir + cql_nml['cql3d_files']['cqlinput']
+    config["eqdsk_file_name"] = cql_run_dir + cql_nml['cql3d_files']['eqdsk_file_name']
+    config["eqdsk_type"] = cql_nml['cql3d_files']['eqdsk_type']
+
+    # Define "plasma_from_cqlinput" flag:
+    if "plasma_from_cqlinput" in fida_nml['cql3d_input_files']:
+        config["plasma_from_cqlinput"] = fida_nml['cql3d_input_files']['plasma_from_cqlinput']
     else:
         config["plasma_from_cqlinput"] = False
-    config["plasma_file_name"] = input_dir + sub_nml['plasma_file_name']
 
-    if "include_f4d" in sub_nml:
-        config["include_f4d"] = sub_nml['include_f4d']
+    # Get plasma file name:
+    if config["plasma_from_cqlinput"] == False:
+        config["plasma_file_name"] = cql_run_dir + cql_nml['cql3d_files']['plasma_file_name']
+    else:
+        config["plasma_file_name"] = ''
+
+    # Define "include_f4d" flag:
+    if "include_f4d" in fida_nml['cql3d_input_files']:
+        config["include_f4d"] = fida_nml['cql3d_input_files']['include_f4d']
     else:
         config["include_f4d"] = False
-    config["f4d_ion_file_name"] = input_dir + sub_nml['f4d_ion_file_name']
-    config["f4d_electron_file_name"] = input_dir + sub_nml['f4d_electron_file_name']
+
+    if config['include_f4d'] == True:
+        config["f4d_ion_file_name"] = cql_run_dir + cql_nml['cql3d_files']['f4d_ion_file_name']
+        config["f4d_electron_file_name"] = cql_run_dir + cql_nml['cql3d_files']['f4d_electron_file_name']
+    else:
+        config["f4d_ion_file_name"] = ''
+        config["f4d_electron_file_name"] = ''
 
     # Plasma profiles parameters:
-    sub_nml = nml['plasma_profiles_params']
+    sub_nml = fida_nml['plasma_profiles_params']
     config["impurity_charge"] = sub_nml['impurity_charge']
     config["rho_LCFS"] = sub_nml['rho_LCFS']
     config["dene_LCFS"] = sub_nml['dene_LCFS']
@@ -1028,12 +1045,12 @@ def construct_preprocessor_config(run_dir):
 
     # Define path to output directory:
     # (This is where you want the FIDASIM HDF5 files to be written to)
-    config['output_path'] = nml['preprocessor_output']['output_dir']
+    config['output_path'] = fida_nml['preprocessor_output']['output_dir']
     if not config['output_path']:
-        config['output_path'] = os.path.dirname(config_file) + "/"
+        config['output_path'] = fida_run_dir
 
     # Beam physics switches:
-    sub_nml = nml['beam_physics_switches']
+    sub_nml = fida_nml['beam_physics_switches']
     if "enable_nonthermal_calc" in sub_nml:
         config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
     if "calc_sink" in sub_nml:
@@ -1044,14 +1061,14 @@ def construct_preprocessor_config(run_dir):
     config['calc_halo'] = sub_nml['calc_halo']
 
     # Define number of Monte-Carlo particles:
-    sub_nml = nml['monte_carlo_particles']
+    sub_nml = fida_nml['monte_carlo_particles']
     config['n_nbi'] = sub_nml['n_nbi']
     config['n_birth'] = sub_nml['n_birth']
     config['n_dcx'] = sub_nml['n_dcx']
     config['n_halo'] = sub_nml['n_halo']
 
     # Define beam grid parameters:
-    sub_nml = nml['beam_grid']
+    sub_nml = fida_nml['beam_grid']
     config["beam_grid"] = {}
     config["beam_grid"]["beam_aligned"] = sub_nml['beam_aligned']  # Option between machine-aligned or beam-aligned
     config["beam_grid"]["nx"] = sub_nml['nx']

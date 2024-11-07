@@ -5,15 +5,18 @@
 # ======================= USER INPUTS ========================
 # ============================================================
 
-# Case to run [required]:
-#RUN_ID="WHAM_example_2"
-#RUN_ID="WHAM_no_f4d"
-#FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
-#CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
+# Check if RUN_ID, FIDASIM_RUN_DIR and CQL3D_RUN_DIR exist.
+# If not, define them:
+if [ -z "${RUN_ID}" ] && [ -z "${FIDASIM_RUN_DIR}" ] && [ -z "${CQL3D_RUN_DIR}" ]; then
 
-# Diagnostics:
-echo " FIDASIM_RUN_DIR: $FIDASIM_RUN_DIR"
-echo " CQL3D_RUN_DIR: $CQL3D_RUN_DIR"
+    RUN_ID="WHAM_low_ne_nonthermal"
+#    RUN_ID="WHAM_low_ne_thermal"
+
+    FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
+    CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
+    NUM_THREADS=14
+    echo "RUN_ID, FIDASIM_RUN_DIR and CQL3D_RUN_DIR variables not set. Using internal values:"
+fi
 
 # Repo location [optional]:
 fidasim_DIR=""
@@ -23,6 +26,10 @@ fidasim_DIR=""
 # ======================= USER INPUTS ========================
 # ============================================================
 
+# Diagnostics:
+echo "RUN_ID: $RUN_ID"
+echo "FIDASIM_RUN_DIR: $FIDASIM_RUN_DIR"
+echo "CQL3D_RUN_DIR: $CQL3D_RUN_DIR"
 
 # If repo locations are not set, use system variables:
 # ============================================================

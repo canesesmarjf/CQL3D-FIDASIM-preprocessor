@@ -1,5 +1,7 @@
 #!/bin/bash
 
+DEBUG_FLAG=""
+
 # USER INPUTS:
 # ============================================================
 # ======================= USER INPUTS ========================
@@ -11,10 +13,12 @@ if [ -z "${RUN_ID}" ] && [ -z "${FIDASIM_RUN_DIR}" ] && [ -z "${CQL3D_RUN_DIR}" 
 
     RUN_ID="WHAM_low_ne_nonthermal"
 #    RUN_ID="WHAM_low_ne_thermal"
+#    RUN_ID="WHAM_wall_flux_cold_plasma"
 
     FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
     CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
     NUM_THREADS=14
+    DEBUG_FLAG="--debug"
     echo "RUN_ID, FIDASIM_RUN_DIR and CQL3D_RUN_DIR variables not set. Using internal values:"
 fi
 
@@ -30,6 +34,7 @@ fidasim_DIR=""
 echo "RUN_ID: $RUN_ID"
 echo "FIDASIM_RUN_DIR: $FIDASIM_RUN_DIR"
 echo "CQL3D_RUN_DIR: $CQL3D_RUN_DIR"
+echo "DEBUG_FLAG: $DEBUG_FLAG"
 
 # If repo locations are not set, use system variables:
 # ============================================================
@@ -57,7 +62,7 @@ fi
 # 8- mnemonic_f4d_001.nc
 # 9- mnemonic_f4d_001.nc
 
-# The output product is the follownig:
+# The output product is the following:
 # - run_id_distribution.h5
 # - run_id_equilibrium.h5
 # - run_id_geometry.h5
@@ -73,7 +78,7 @@ fi
 # Step 2: Run FIDASIM:
 # ============================================================
 STEP_2="$pp_DIR/Step_2_run_FIDASIM.sh"
-$STEP_2 --fida-run-dir $FIDASIM_RUN_DIR --parallel-mode openmp -n $NUM_THREADS --executable $fidasim_DIR/fidasim --verbose
+$STEP_2 --fida-run-dir $FIDASIM_RUN_DIR --parallel-mode openmp -n $NUM_THREADS --executable $fidasim_DIR/fidasim --verbose $DEBUG_FLAG
 if [ $? -ne 0 ]; then
     echo "Error: Step_2_run_FIDASIM.sh failed"
     exit 1

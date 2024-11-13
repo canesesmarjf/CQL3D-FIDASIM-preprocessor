@@ -12,7 +12,7 @@ calc_impact_vectors = 1;
 plot_plasma = 1;
 plot_fields = 0;
 
-scenario = 6;
+scenario = 5;
 
 switch scenario
     case 1
@@ -35,6 +35,10 @@ switch scenario
         run_id = "WHAM_low_ne_thermal";
         fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
         cql3d_run_dir = "./cql3d_files/" + run_id + "/";      
+    case 7
+        run_id = "WHAM_wall_flux_cold_plasma";
+        fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
+        cql3d_run_dir = "./cql3d_files/" + run_id + "/";          
 end
 
 %% Get data:
@@ -51,7 +55,7 @@ config = read_config_files(fidasim_run_dir,cql3d_run_dir,run_id);
 
 % Birth profile:
 birth_file = fidasim_run_dir + run_id + "_birth.h5";
-if exist(birth_file)
+if exist(birth_file)==2
     birth = read_fidasim_sources("birth",fidasim_run_dir, run_id);
 else
     disp("Birth data not available ...")
@@ -59,7 +63,7 @@ end
 
 % Sink Profile:
 sink_file = fidasim_run_dir + run_id + "_sink.h5";
-if exist(sink_file)
+if exist(sink_file)==2
     sink = read_fidasim_sources("sink",fidasim_run_dir, run_id);
 else
     disp("Sink data not available ...")
@@ -74,7 +78,7 @@ cqlinput_nml = read_nml(cqlinput_file);
 
 % CQL3D mnemonic netCDF file:
 cql_mnemonic_file = cql3d_run_dir + config.cql3d.plasma_file_name;
-if exist(cql_mnemonic_file)
+if exist(cql_mnemonic_file,'file')==2
     cql3d_nc = read_cql3d_mnemonic(cql3d_run_dir,config);
 end
 
@@ -102,7 +106,7 @@ vessel_geom.axis_cyl = [0,0,1];
 
 % Birth profile in velocity space:
 % =========================================================================
-if exist("birth_file")
+if exist(birth_file)==2
     [birth_f, birth_vpar, birth_vper] = ...
         accumulate_source_on_velocity_grid...
         (birth.vpar, birth.vper, birth.weight, 20, 20);
@@ -110,7 +114,7 @@ end
 
 % Sink profile in velocity space:
 % =========================================================================
-if exist("sink_file")
+if exist(sink_file)==2
     npar = 70;
     nper = 35;
     [sink_f, sink_vpar, sink_vper] = ...
@@ -120,7 +124,7 @@ end
 
 % CX neutrals on the wall:
 % =========================================================================
-if exist("sink_file")
+if exist(sink_file)==2
     if calc_impact_vectors    
         [theta_bins, z_bins, particle_flux_map, energy_flux_map] = ...
         calculate_cx_neutral_wall_impact_map(vessel_geom, sink, 100, 81);
@@ -134,7 +138,7 @@ end
 
 %% Print NBI absorption diagnostic:
 
-if exist("birth_file")
+if exist(birth_file)==2
 
     % Total power in ions deposited in [W]:
     Pabs = sum(birth.energy.*birth.weight*1e3*e_c); % [W]
@@ -146,7 +150,7 @@ if exist("birth_file")
     disp("(FIDASIM) " + num2str(shinethrough*100,4) + "% shine-through")
     
     % CQL3D NBI power:
-    if exist("cql_mnemonic_file")
+    if exist(cql_mnemonic_file)==2
         
         % Get NBI power from netCDF file:
         powers_int = cql3d_nc.powers_int; % 'powers(*,6,k,t)=Ion particle source'
@@ -228,7 +232,7 @@ end
 
 %% Plot ion sink profile in velocity space:
 
-if exist("sink_file")
+if exist(sink_file)==2
         
     hfig = figure('color','w');
     box on
@@ -286,9 +290,74 @@ if exist("sink_file")
     end
 end
 
+%% Plot cx neutral flux to wall for different energy ranges:
+if exist(sink_file)==2
+    if calc_impact_vectors  
+        max_energy = max(sink.energy);
+        min_energy = min(sink.energy);
+        
+        hfig = figure('color','w')
+        [fE,fE_edges] = histcounts(sink.energy,'BinLimits',[min_energy,max_energy],'Normalization','pdf');
+        plot(fE_edges(1:end-1),fE,'LineWidth',2)
+        title('CX neutral energy PDF')
+        xlabel('Energy [keV]')
+
+        energy_rng.min   = [0  , 0.1, 0.2,0.3]*max_energy;
+        energy_rng.max   = [0.1, 0.2, 0.3,1.0]*max_energy;
+        energy_rng.color = {'r','bl','g' ,'m'};
+
+        % Loop through each energy range and add a shaded area
+        for i = 1:length(energy_rng.min)
+            % Define the x and y coordinates for the shaded area
+            x_patch = [energy_rng.min(i), energy_rng.max(i), energy_rng.max(i), energy_rng.min(i)];
+            y_patch = [0, 0, max(fE), max(fE)];
+            
+            % Add a shaded patch with semi-transparency
+            patch(x_patch, y_patch, energy_rng.color{i}, 'FaceAlpha', 0.3, 'EdgeColor', 'none');
+        end
+
+        if save_cx_impact_figs
+            save_fig(hfig,fidasim_run_dir,"cx_energy_PDF"); 
+        end 
+
+        for ee = 1:numel(energy_rng.max)
+            rng = find(sink.energy >= energy_rng.min(ee) & sink.energy < energy_rng.max(ee));
+            sink_subset{ee}.energy = sink.energy(rng);
+            sink_subset{ee}.weight = sink.weight(rng);
+            sink_subset{ee}.n_sink = numel(rng);
+            sink_subset{ee}.U = sink.U(rng);
+            sink_subset{ee}.V = sink.V(rng);
+            sink_subset{ee}.W = sink.W(rng);
+            sink_subset{ee}.vU = sink.vU(rng);
+            sink_subset{ee}.vV = sink.vV(rng);
+            sink_subset{ee}.vW = sink.vW(rng);
+
+            % Calculate cx neutral fluxes on wall:
+            [theta_bins, z_bins, particle_flux_map, energy_flux_map] = ...
+            calculate_cx_neutral_wall_impact_map(vessel_geom, sink_subset{ee}, 100, 81);
+        
+            % Plot the neutral particle flux density map:
+            [hfig] = plot2D_cx_neutral_wall_impact_map(theta_bins, z_bins, particle_flux_map);
+            title('CX neutral flux density on vaccum vessel [atom/cm^2/s]');
+
+            % Define the energy range label
+            energy_label = sprintf('Energy: [%.3f, %.3f] keV', energy_rng.min(ee), energy_rng.max(ee));
+            
+            % Add the label at the upper left corner inside the plot area
+            x_pos = -170; % Adjust the x position as needed
+            y_pos = max(z_bins) - (max(z_bins) - min(z_bins)) * 0.05; % Slightly below the top edge
+            text(x_pos, y_pos, energy_label, 'FontSize', 14, 'FontWeight', 'bold', 'Color', 'black', 'HorizontalAlignment', 'left');
+
+            if save_cx_impact_figs
+                save_fig(hfig,fidasim_run_dir,"cx_energy_flux_map_2D_rng_" + num2str(ee)); 
+            end  
+        end
+
+    end
+end
 %% Plot CX neutral impact maps:
 
-if exist("sink_file")
+if exist(sink_file)==2
     if calc_impact_vectors    
         % Calculate cx neutral fluxes on wall:
         [theta_bins, z_bins, particle_flux_map, energy_flux_map] = ...
@@ -334,21 +403,21 @@ camlight;
 lighting gouraud;
 
 % Add birth points:
-if exist("birth_file")
+if exist(birth_file)==2
     hold on
     plot3(birth.U,birth.V,birth.W,'k.')
     hold off
 end
 
 % Add sink points:
-if exist("sink_file")
+if exist(sink_file)==2
     hold on
     plot3(sink.U,sink.V,sink.W,'g.')
     hold off
 end
 
 % Add cx power density impacting vaccum vessel:
-if calc_impact_vectors && exist("sink_file")
+if calc_impact_vectors && (exist(sink_file)==2)
     flux_wall = particle_flux_map;
 
     plot3D_cx_neutral_wall_impact_map...

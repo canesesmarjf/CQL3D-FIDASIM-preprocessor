@@ -17,6 +17,32 @@ parser.add_argument('--plot', action='store_true', help="Enable plotting")  # Ad
 parser.add_argument('--fidasim-dir', type=str, help="Directory where the FIDASIM repo is located")
 args = parser.parse_args()
 
+# USER INPUTS:
+# ============================================================
+# ======================= USER INPUTS ========================
+# ============================================================
+
+# Check if no command line arguments were provided
+if len(sys.argv) == 1:
+    print("No command line arguments provided. Using internal values.")
+
+    # User input:
+    run_id = "WHAM_low_ne_thermal"
+    run_id = "WHAM_wall_flux_cold_plasma"
+    run_id = "WHAM_low_ne_nonthermal"
+
+    fidasim_run_dir = "./fidasim_files/" + run_id
+    cql3d_run_dir   = "./cql3d_files/" + run_id
+
+    args.fida_run_dir = fidasim_run_dir
+    args.cql_run_dir = cql3d_run_dir
+    args.fidasim_dir = None
+    args.plot = True
+
+# ============================================================
+# ======================= USER INPUTS ========================
+# ============================================================
+
 # Add local FIDASIM directory:
 if (args.fidasim_dir == None):
     args.fidasim_dir = os.getenv('FIDASIM_DIR','/home/jfcm/Repos/FIDASIM')

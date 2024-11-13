@@ -1,5 +1,5 @@
 &fidasim_run_info
-  comment = "WHAM case with low ne and using f4d to calculate CX sinks"
+  comment = "WHAM case with a cold thermal plasma and calculate CX neutrals on walls"
 /
 
 &preprocessor_output
@@ -8,8 +8,8 @@
 
 &cql3d_input_files
   eqdsk_type = 1 !(1) mirror or (2) toroidal
-  plasma_from_cqlinput = 0
-  include_f4d = 1
+  plasma_from_cqlinput = 1
+  include_f4d = 0 ! If equal to zero, makes denf:0 and does not interpolate f4d
 /
 
 &rz_interpolation_grid
@@ -24,14 +24,14 @@
 &plasma_profiles_params
   impurity_charge = 6
   rho_LCFS = 1.0
-  dene_LCFS = 1e6
-  te_LCFS = 0.01
-  ti_LCFS = 0.01
+  dene_LCFS = 1e10
+  te_LCFS = 0.005
+  ti_LCFS = 0.005
   zeff_LCFS = 1.0
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 1
+  enable_nonthermal_calc = 0
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0
@@ -40,8 +40,8 @@
 
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
-  n_nbi = 5e3
-  n_birth = 5e3
+  n_nbi = 500e3
+  n_birth = 500e3
   n_dcx = 500e3
   n_halo = 500e3
 /
@@ -51,9 +51,9 @@
   beam_aligned = .False. ! Option between machine-aligned or beam-aligned
 
   ! Define number of cells for the beam grid:
-  nx = 50
+  nx = 80
   ny = 50
-  nz = 80
+  nz = 50
 
   ! beam_aligned == .True.:
   ! -----------------------

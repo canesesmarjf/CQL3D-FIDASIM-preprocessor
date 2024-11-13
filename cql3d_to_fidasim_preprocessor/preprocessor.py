@@ -184,6 +184,7 @@ def construct_plasma_from_cqlinput(config,grid,rho):
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
     max_rho = 1.01
+    max_rho = 1.5
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
@@ -494,8 +495,11 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     # =====================
     nenergy = fbm_grid.shape[0]
     npitch = fbm_grid.shape[1]
+
+    # Are the following dimensions incorrectly set? JFCM 2024_11_12:
     pitch = np.zeros(nenergy)
     energy = np.zeros(npitch)
+
     if include_f4d:
         pitch = pp_nc[0,:]
         energy = ee_nc[:,1]

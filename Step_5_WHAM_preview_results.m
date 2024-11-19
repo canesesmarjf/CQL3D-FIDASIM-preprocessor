@@ -12,7 +12,7 @@ calc_impact_vectors = 1;
 plot_plasma = 1;
 plot_fields = 0;
 
-scenario = 5;
+scenario = 5.1;
 
 switch scenario
     case 1
@@ -31,6 +31,10 @@ switch scenario
         run_id = "WHAM_low_ne_nonthermal";
         fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
         cql3d_run_dir = "./cql3d_files/" + run_id + "/";
+    case 5.1
+        run_id = "WHAM_high_ne_nonthermal";
+        fidasim_run_dir  = "./run_dir/" + run_id + "/";
+        cql3d_run_dir = "./run_dir/" + run_id + "/";        
     case 6
         run_id = "WHAM_low_ne_thermal";
         fidasim_run_dir  = "./fidasim_files/" + run_id + "/";

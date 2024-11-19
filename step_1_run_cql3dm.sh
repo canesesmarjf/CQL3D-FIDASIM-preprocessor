@@ -12,9 +12,14 @@ conda activate FIDASIM_env
 
 # Define run directories:
 # ===========================================================
+#export RUN_ID="WHAM_example_1"
+#export FIDASIM_RUN_DIR="$PWD/fidasim_files/$RUN_ID"
+#export CQL3D_RUN_DIR="$PWD/cql3d_files/$RUN_ID"
+#export START_DIR=$PWD
+
 export RUN_ID="WHAM_example_1"
-export FIDASIM_RUN_DIR="$PWD/fidasim_files/$RUN_ID"
-export CQL3D_RUN_DIR="$PWD/cql3d_files/$RUN_ID"
+export FIDASIM_RUN_DIR="$PWD/run_dir/$RUN_ID"
+export CQL3D_RUN_DIR="$PWD/run_dir/$RUN_ID"
 export START_DIR=$PWD
 
 # Setup environmental variables:

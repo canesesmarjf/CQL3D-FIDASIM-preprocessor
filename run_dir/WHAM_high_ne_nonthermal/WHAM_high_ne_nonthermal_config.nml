@@ -1,5 +1,5 @@
 &fidasim_run_info
-  comment = "WHAM case with low ne and using f4d to calculate CX sinks"
+  comment = "WHAM case with high ne and using f4d to calculate CX sinks"
 /
 
 &preprocessor_output

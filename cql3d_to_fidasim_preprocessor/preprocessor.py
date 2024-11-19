@@ -365,17 +365,105 @@ def construct_plasma_from_netcdf(config,grid,rho):
 
     return plasma
 
+from scipy.interpolate import RegularGridInterpolator
+def interpolate_fbm_over_velocity_space(fbm_nc, v_nc, t_nc, r_nc, z_nc, v_new, t_new):
+    """
+    Interpolates the 4D array `fbm_nc` on a new velocity (`v_new`) and theta (`t_new`) grid
+    for each (R, Z) coordinate.
+
+    Parameters:
+    -----------
+    fbm_nc : np.ndarray
+        The input 4D array with dimensions [V, T, R, Z].
+    v_nc : np.ndarray
+        The original velocity grid (1D array).
+    t_nc : np.ndarray
+        The original theta grid (1D array).
+    r_nc : np.ndarray
+        The original radial coordinate grid (1D array).
+    z_nc : np.ndarray
+        The original axial coordinate grid (1D array).
+    v_new : np.ndarray
+        The new velocity grid (1D array) obtained from a uniform energy grid.
+    t_new : np.ndarray
+        The new theta grid (1D array) obtained from a uniform `cos(theta)` grid.
+
+    Returns:
+    --------
+    fbm_interpolated : np.ndarray
+        The interpolated 4D array with dimensions [len(v_new), len(t_new), len(r_nc), len(z_nc)].
+    """
+    # Define the shape of the output interpolated array
+    v_len = len(v_new)
+    t_len = len(t_new)
+    r_len = len(r_nc)
+    z_len = len(z_nc)
+
+    # Initialize the output array
+    fbm_interpolated = np.zeros((v_len, t_len, r_len, z_len))
+
+    # Loop over each (R, Z) coordinate
+    for r in range(r_len):
+        for z in range(z_len):
+            # Extract the 2D slice for the current (R, Z) location
+            fbm_slice = fbm_nc[:, :, r, z]
+
+            # Set up the interpolator for this slice
+            interpolator = RegularGridInterpolator(
+                (v_nc, t_nc), fbm_slice, method='linear',bounds_error=False, fill_value=None
+            )
+
+            # Create a meshgrid of the new velocity and theta points
+            v_mesh, t_mesh = np.meshgrid(v_new, t_new, indexing='ij')
+            points = np.array([v_mesh.flatten(), t_mesh.flatten()]).T
+
+            # Perform the interpolation and reshape the result back to 2D
+            interpolated_values = interpolator(points).reshape(v_len, t_len)
+
+            # Store the interpolated values in the output array
+            fbm_interpolated[:, :, r, z] = interpolated_values
+
+    return fbm_interpolated
+
 def construct_f4d(config,grid,rho,plot_flag,include_f4d):
+
+    # NOTE:
+    # The f4d provided by CQL3D has uniform grid in veloocity "v" and angle "t"
+    # FIDASIM requires an f4d with uniform grid in energy "E" and pitch "p"
+    # where E \propto v^2 and p \proto cos(t)
+    # In order to correctly pass the distribution function to FIDASIM, we need to convert the CQL3D f4d into uniform E and p grids
+    # This will require an 2D interpolation process
 
     print("     running 'construct_f4d' ...")
     start_time = time.time()
 
+    # Define time stamp:
+    # ====================================
+    # Use time stamp from latest time in the netCDF file if it exists.
+    # If it does not exist, then set it to 0:
+
     # Default time stamp:
     time_stamp = 0.0
 
-    # Get time if nc file exists:
+    # Check if we have access to the required files:
     nc_file_name = config['plasma_file_name']
-    if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
+    f4d_ion_file_name = config['f4d_ion_file_name']
+    f4d_electron_file_name = config['f4d_electron_file_name']
+    nc_flag = os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name)
+    f4i_flag = os.path.exists(f4d_ion_file_name) and not os.path.isdir(f4d_ion_file_name)
+    f4e_flag = os.path.exists(f4d_electron_file_name) and not os.path.isdir(f4d_electron_file_name)
+    if include_f4d:
+        if nc_flag and f4i_flag and f4e_flag:
+            print("         All files for f4d interpolation are available!!")
+        else:
+            print("         Files for f4d interpolation missing ...")
+            print("         Aborting python program at construct_f4d")
+            sys.exit(1)
+    else:
+        print("         Skipping f4d interpolation ...")
+
+    # Get time if nc file exists:
+    if nc_flag:
         # Get time stamp and mass for this dataset:
         src_nc = read_ncdf(nc_file_name)
         threshold = 1e20
@@ -390,10 +478,11 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     # FIDASIM subroutine "read_f" states that the fbm grid must have the same R,Z dimensions as the interpolation grid.
     # It can however, have any dimension for the energy and pitch angle dimensions.
     # To obtain the maximum resolution, we at least need to have the same energy and pitch dimensions as the nc file
+    # We note that the pitch and energy grids for FIDASIM needs to be uniform.
 
     # Interpolation grids:
-    r_grid = grid['r2d']
-    z_grid = grid['z2d']
+    r_grid = grid['r2d'] # [cm]
+    z_grid = grid['z2d'] # [cm]
 
     # Initialize fbm array:
     num_R = r_grid.shape[0]
@@ -401,7 +490,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     num_E = 2
     num_P = 2
     if include_f4d:
-        num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
+        num_E = 2*read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
         num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 
@@ -424,20 +513,56 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         fbm_nc = fbm_nc.transpose(1, 0, 3, 2)
 
         # Velocity space 1D grids for fbm_nc:
-        v_nc = f4d_nc['f4dv']
-        t_nc = f4d_nc['f4dt']
-        vv, tt = np.meshgrid(v_nc, t_nc, indexing='ij')
+        v_nc = f4d_nc['f4dv'] # Normalized to vnorm, [dimensionless]
+        t_nc = f4d_nc['f4dt'] # [degrees]
 
         # Spatial 1D grids for fbm_nc:
-        r_nc = f4d_nc['f4dr']
-        z_nc = f4d_nc['f4dz']
+        r_nc = f4d_nc['f4dr'] # [cm]
+        z_nc = f4d_nc['f4dz'] # [cm]
+
+        # Produce new v_nc and t_nc which corresponds to uniform E and P grids:
+
+        # Get normalizing momentum per unit electron rest mass
+        vnorm = f4d_nc['vnorm']  # [cm/s]
+        vnorm_SI = vnorm/1e2  # [m/s]
+
+        # Get corresponding normalizing  electron energy:
+        enorm = f4d_nc['enorm'] # [keV]
+
+        # Get minimum and maximum ion energy associated with input nc file:
+        mass_AMU = np.array([src_nc['fmass'][0] / (mass_proton_SI * 1e3)])
+        mass = mass_AMU[0] * mass_proton_SI  # [kg]
+        v_max = v_nc.max()*vnorm_SI  # [m/s]
+        e_max = 0.5*mass*(v_max**2)/charge_electron_SI # [eV]
+        v_min = v_nc.min()*vnorm_SI  # [m/s]
+        e_min = 0.5*mass*(v_min**2)/charge_electron_SI  # [eV]
+
+        # Get the minimum and maximum pitch angle theta:
+        t_max = t_nc.max()
+        p_max = np.cos(t_max)
+        t_min = t_nc.min()
+        p_min = np.cos(t_min)
+
+        # Create uniform E and P grids:
+        e_1D = np.linspace(start=e_min,stop=e_max,num=num_E)*1e-3 # [keV]
+        p_1D = np.linspace(start=p_min,stop=p_max,num=num_P) # [dimensionless = vpar/v]
+
+        # New (normalized) velocity and pitch angle grid:
+        v_1D = (np.sqrt(2*charge_electron_SI*(e_1D*1e3)/mass)/vnorm_SI) # [dimensionless]
+        t_1D = np.arccos(p_1D)
+
+        # Interpolate fbm_nc at v_1D and t_1D
+        fbm_interpolated = interpolate_fbm_over_velocity_space(fbm_nc, v_nc, t_nc, r_nc, z_nc, v_1D, t_1D)
+
+        # Create velocity space mesh:
+        vv, tt = np.meshgrid(v_1D, t_1D, indexing='ij')
 
         # Create mask: (for regions outside LCFS)
         max_rho = 1
         mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
         # Reshape fbm_nc to bring the R and Z dimensions to the front: [R,Z,E,P]
-        fbm_reshaped = fbm_nc.transpose(2, 3, 0, 1)
+        fbm_reshaped = fbm_interpolated.transpose(2, 3, 0, 1)
 
         # Combine E and P coordinates into a single dimension: [R,Z,E*P]
         fbm_reshaped = fbm_reshaped.reshape(10, 121, -1)
@@ -459,7 +584,8 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         interpolated_values = interpolator(query_points)
 
         # Reshape interpolated values back into the grid shape: [Rg,Zg,E,P]
-        fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], fbm_nc.shape[0], fbm_nc.shape[1])
+        # fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], fbm_nc.shape[0], fbm_nc.shape[1])
+        fbm_grid = interpolated_values.reshape(r_grid.shape[0], z_grid.shape[1], num_E, num_P)
 
         # Apply mask:
         fbm_grid *= mask[:,:,np.newaxis,np.newaxis]
@@ -476,18 +602,11 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         print("         Integrating f4d ...")
 
         # Integrate over velocity (v) and pitch (v): (the trapz operation is quite time-consuming)
-        p = np.cos(t_nc)
-        v = v_nc
+        p = p_1D # np.cos(t_1D)
+        v = v_1D
         int_over_v = np.trapz(fbm_grid * v[:, np.newaxis, np.newaxis, np.newaxis] ** 2, x=v, axis=0)
         denf = -2 * np.pi * np.trapz(int_over_v, x=p, axis=0)
 
-        # Grids for E and pitch coordinates (This is what FIDASIM requires)
-        mass_AMU = np.array([src_nc['fmass'][0] / (mass_proton_SI * 1e3)])
-        vnorm = f4d_nc['vnorm']
-        mass = mass_AMU*mass_proton_SI
-        enorm = f4d_nc['enorm']
-        ee_nc = (0.5 * mass * (vv * vnorm * 1e-2) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
-        pp_nc = np.cos(tt)
     else:
         print("         Skipping integrating f4d ...")
 
@@ -501,8 +620,8 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     energy = np.zeros(npitch)
 
     if include_f4d:
-        pitch = pp_nc[0,:]
-        energy = ee_nc[:,1]
+        pitch = p_1D #pp_nc[0,:]
+        energy = e_1D #ee_nc[:,1]
 
     fbm_dict = {"type":1,"time":time_stamp,"nenergy":nenergy,"energy":energy,"npitch":npitch,
               "pitch":pitch,"f":fbm_grid,"denf":denf,"data_source":os.path.abspath(config['f4d_ion_file_name'])}
@@ -512,8 +631,11 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         # ====================================================
 
         # Grids for vpar and vper coordinates:
+        vv, tt = np.meshgrid(v_nc, t_nc, indexing='ij')
         vvpar = vv * np.cos(tt)
         vvper = vv * np.sin(tt)
+        ee_nc = (0.5 * mass * (vv * vnorm_SI) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
+        pp_nc = np.cos(tt)
 
         # Plot distribution function in vpar and vper coords:
         plt.figure()
@@ -546,7 +668,8 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         ir = 0
         iz = np.int64(np.round(fbm_grid.shape[3]/2))
         data = fbm_grid[:, :, ir, iz]
-        ax1.contourf(ee_nc, pp_nc, data)
+        ee,pp = np.meshgrid(e_1D, p_1D, indexing='ij')
+        ax1.contourf(ee, pp, data)
         ax1.set_xlim([0, enorm])
         ax1.set_xlabel('Energy [keV]')
         ax1.set_ylabel(r'pitch $v_{\parallel}/v$')

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-DEBUG_FLAG=""
-
 # USER INPUTS:
 # ============================================================
 # ======================= USER INPUTS ========================
@@ -11,14 +9,18 @@ DEBUG_FLAG=""
 # If not, define them:
 if [ -z "${RUN_ID}" ] && [ -z "${FIDASIM_RUN_DIR}" ] && [ -z "${CQL3D_RUN_DIR}" ]; then
 
-    RUN_ID="WHAM_low_ne_nonthermal"
+#    RUN_ID="WHAM_low_ne_nonthermal"
 #    RUN_ID="WHAM_low_ne_thermal"
 #    RUN_ID="WHAM_wall_flux_cold_plasma"
+#    FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
+#    CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
 
-    FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
-    CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
+    RUN_ID="WHAM_high_ne_nonthermal"
+    FIDASIM_RUN_DIR=$PWD/run_dir/$RUN_ID
+    CQL3D_RUN_DIR=$PWD/run_dir/$RUN_ID
+
     NUM_THREADS=14
-    DEBUG_FLAG="--debug"
+#    DEBUG_FLAG="--debug"
     echo "RUN_ID, FIDASIM_RUN_DIR and CQL3D_RUN_DIR variables not set. Using internal values:"
 fi
 
@@ -45,6 +47,12 @@ fi
 if [ -z "$pp_DIR" ]; then
     pp_DIR=$PREPROCESSOR_DIR
     echo " pp_DIR: $pp_DIR"
+fi
+
+# If debug flag is not set, make it empty:
+# ============================================================
+if [ -z "$DEBUG_FLAG" ]; then
+  DEBUG_FLAG=""
 fi
 
 # Step 1: Run preprocessor script to produce input files for FIDASIM:

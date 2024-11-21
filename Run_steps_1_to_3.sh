@@ -52,6 +52,7 @@ fi
 # If debug flag is not set, make it empty:
 # ============================================================
 if [ -z "$DEBUG_FLAG" ]; then
+  #DEBUG_FLAG="--debug"
   DEBUG_FLAG=""
 fi
 

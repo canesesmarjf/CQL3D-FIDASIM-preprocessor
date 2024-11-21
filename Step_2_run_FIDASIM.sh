@@ -167,7 +167,8 @@ echo "Run mode: =================================="
 if [[ "$parallel_mode" == "openmp" ]]; then
     if $debug; then
         echo "Running in DEBUG mode (reverse connect to FORGE)..."
-        ddt --connect $executable $input_file $num_threads
+        $FORGE_DIR/forge
+        ddt --connect --openmp-threads=$num_threads $executable $input_file $num_threads
     else
         echo "Running in OpenMP mode with $num_threads threads."
         $executable $input_file $num_threads
@@ -175,11 +176,18 @@ if [[ "$parallel_mode" == "openmp" ]]; then
 elif [[ "$parallel_mode" == "mpi" ]]; then
     if $debug; then
         echo "Running in DEBUG mode (reverse connect to FORGE)..."
+        $FORGE_DIR/forge
         ddt --connect mpirun -n $num_threads $executable $input_file
     else
         echo "Running in MPI mode with $num_threads ranks."
         mpirun -np $num_threads $executable $input_file
     fi
+fi
+
+# Program fail check
+if [ $? -ne 0 ]; then
+    echo "Error in Step_2_run_FIDASIM.sh: Program execution failed with exit status $?"
+    exit 1
 fi
 
 echo ""

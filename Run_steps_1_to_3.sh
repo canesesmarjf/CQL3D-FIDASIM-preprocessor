@@ -14,13 +14,21 @@ if [ -z "${RUN_ID}" ] && [ -z "${FIDASIM_RUN_DIR}" ] && [ -z "${CQL3D_RUN_DIR}" 
 #    RUN_ID="WHAM_wall_flux_cold_plasma"
 #    FIDASIM_RUN_DIR=$PWD/fidasim_files/$RUN_ID
 #    CQL3D_RUN_DIR=$PWD/cql3d_files/$RUN_ID
+#    NUM_THREADS=14
+#    DEBUG_FLAG="--debug"
 
-    RUN_ID="WHAM_high_ne_nonthermal"
+#    RUN_ID="WHAM_high_ne_nonthermal"
+ #   FIDASIM_RUN_DIR=$PWD/run_dir/$RUN_ID
+ #   CQL3D_RUN_DIR=$PWD/run_dir/$RUN_ID
+ #   NUM_THREADS=14
+#    DEBUG_FLAG="--debug"
+
+    RUN_ID="WHAM_example_1"
     FIDASIM_RUN_DIR=$PWD/run_dir/$RUN_ID
     CQL3D_RUN_DIR=$PWD/run_dir/$RUN_ID
-
     NUM_THREADS=14
 #    DEBUG_FLAG="--debug"
+
     echo "RUN_ID, FIDASIM_RUN_DIR and CQL3D_RUN_DIR variables not set. Using internal values:"
 fi
 

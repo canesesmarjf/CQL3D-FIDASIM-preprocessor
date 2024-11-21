@@ -490,7 +490,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     num_E = 2
     num_P = 2
     if include_f4d:
-        num_E = 2*read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
+        num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
         num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 

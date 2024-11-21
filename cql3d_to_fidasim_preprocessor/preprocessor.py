@@ -1,19 +1,25 @@
 import sys
 import time
 import os
-import subprocess
+import subprocess  # If subprocess calls are required in the script
 import datetime
 import warnings
 import f90nml
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator, griddata
 import matplotlib
-matplotlib.use('TkAgg')  # Use TkAgg backend
+
+# Check if DISPLAY is available and set the appropriate backend
+if "DISPLAY" in os.environ and os.environ["DISPLAY"]:
+    matplotlib.use('TkAgg')  # Use GUI-based backend
+else:
+    matplotlib.use('Agg')  # Use non-interactive backend for headless mode
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-plt.ion()  # Turn on interactive mode
 
+plt.ion()  # Turn on interactive mode (only affects GUI-based backends)
 # Define physical constants:
 mass_proton_CGI = 1.6726E-24 # CGI units [g]
 charge_electron_SI = 1.60217663E-19  # SI units [C]

@@ -18,6 +18,9 @@ fidasim_files/**/*.pdf
 cql3d_files/**/*.pdf
 run_dir/**/*.pdf
 
+# ignore from cql3d:
+run_dir/**/distrfunc
+
 # Ignore all files relating to pycharm env:
 .idea/
 

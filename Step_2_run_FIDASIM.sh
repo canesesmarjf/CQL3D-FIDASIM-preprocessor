@@ -168,6 +168,7 @@ if [[ "$parallel_mode" == "openmp" ]]; then
     if $debug; then
         echo "Running in DEBUG mode (reverse connect to FORGE)..."
         $FORGE_DIR/forge
+        sleep 3
         ddt --connect --openmp-threads=$num_threads $executable $input_file $num_threads
     else
         echo "Running in OpenMP mode with $num_threads threads."
@@ -177,6 +178,7 @@ elif [[ "$parallel_mode" == "mpi" ]]; then
     if $debug; then
         echo "Running in DEBUG mode (reverse connect to FORGE)..."
         $FORGE_DIR/forge
+        sleep 3
         ddt --connect mpirun -n $num_threads $executable $input_file
     else
         echo "Running in MPI mode with $num_threads ranks."

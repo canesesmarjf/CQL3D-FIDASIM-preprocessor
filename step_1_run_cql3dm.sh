@@ -31,8 +31,8 @@ FORGE_DIR=/home/jfcm/linaro/forge/24.0.2/bin
 export PATH=$FORGE_DIR:$PATH
 
 # Number of processors:
-NUM_PROCS=12 # Number of MPI processes for CQL3D
-export NUM_THREADS=14 # Number of theads for FIDASIM
+NUM_PROCS=15 # Number of MPI processes for CQL3D
+export NUM_THREADS=15 # Number of theads for FIDASIM
 
 # Initialize run and time it:
 cd $CQL3D_RUN_DIR

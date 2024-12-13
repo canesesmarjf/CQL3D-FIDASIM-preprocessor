@@ -51,7 +51,7 @@ def construct_interpolation_grid(config):
     nr = config["nr"]
     zmin = config["zmin"]
     zmax = config["zmax"]
-    nz = config["nr"]
+    nz = config["nz"]
     grid = rz_grid(rmin,rmax,nr,zmin,zmax,nz)
     return grid
 
@@ -183,6 +183,7 @@ def construct_plasma_from_cqlinput(config,grid,rho):
     vz = vt
 
     # Cold/Edge neutral density profile:
+    # TODO: compute denn as in the case with netcdf file:
     denn = 1e8 * np.ones(dene.shape)  # Copied value used in the FIDASIM test case
 
     # Create mask:
@@ -190,7 +191,7 @@ def construct_plasma_from_cqlinput(config,grid,rho):
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
     max_rho = 1.01
-    max_rho = 1.5
+    max_rho = 3.5
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
@@ -328,10 +329,21 @@ def construct_plasma_from_netcdf(config,grid,rho):
     ti = griddata(points, ti_nc.flatten(), (r2d, z2d), method='linear', fill_value=ti_LCFS)
 
     # Adjust the profile values in the regions beyond the CFS:
-    dene = np.where(rho > rho_LCFS, dene_LCFS, dene)
-    te = np.where(rho > rho_LCFS, te_LCFS, te)
-    ti = np.where(rho > rho_LCFS, ti_LCFS, ti)
-    zeff = np.where(rho > rho_LCFS, zeff_LCFS, zeff)
+    # dene = np.where(rho > rho_LCFS, dene_LCFS, dene)
+    # te = np.where(rho > rho_LCFS, te_LCFS, te)
+    # ti = np.where(rho > rho_LCFS, ti_LCFS, ti)
+    # zeff = np.where(rho > rho_LCFS, zeff_LCFS, zeff)
+
+    # Add exponential decay to profiles:
+    dene_min = dene_LCFS/100
+    te_min = te_LCFS/100
+    ti_min = ti_LCFS/100
+    zeff_min = zeff_LCFS
+    drho_profiles = 0.1
+    dene = np.where(rho >= rho_LCFS,dene_min + (dene-dene_min) * 0.5 * (1 - np.tanh((rho-rho_LCFS)/drho_profiles)),dene)
+    te   = np.where(rho >= rho_LCFS,te_min   +     (te-te_min) * 0.5 * (1 - np.tanh((rho-rho_LCFS)/drho_profiles)),te)
+    ti   = np.where(rho >= rho_LCFS,ti_min   +     (ti-ti_min) * 0.5 * (1 - np.tanh((rho-rho_LCFS)/drho_profiles)),ti)
+    zeff = np.where(rho >= rho_LCFS,zeff_min + (zeff-zeff_min) * 0.5 * (1 - np.tanh((rho-rho_LCFS)/drho_profiles)),zeff)
 
     # Ion and impurity density profiles:
     # Can "deni" be defined for multiple ion species?
@@ -347,13 +359,17 @@ def construct_plasma_from_netcdf(config,grid,rho):
     vz = vt
 
     # Cold/Edge neutral density profile:
-    denn = 1e8 * np.ones(dene.shape)  # Copied value used in the FIDASIM test case
+    denn_max = 1e10 # [cm^-3]
+    denn_min = 1e6 # [cm^-3]
+    drho_neutral = 0.2
+    denn = denn_min + (denn_max-denn_min)*np.exp((rho-rho_LCFS)/drho_neutral)
+    denn = np.where(rho<rho_LCFS,denn,denn_max).astype('float64')
 
     # Create mask:
     # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
-    max_rho = 1.5
+    max_rho = 5.0
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
@@ -496,7 +512,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     num_E = 2
     num_P = 2
     if include_f4d:
-        num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
+        num_E = 2*read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
         num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 
@@ -550,8 +566,15 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         p_min = np.cos(t_min)
 
         # Create uniform E and P grids:
-        e_1D = np.linspace(start=e_min,stop=e_max,num=num_E)*1e-3 # [keV]
+        de = (e_max - e_min)/(num_E-1)
+        num_E = num_E-1
+        e_1D = np.linspace(start=e_min+de/2,stop=e_max-de/2,num=num_E)*1e-3 # [keV]
         p_1D = np.linspace(start=p_min,stop=p_max,num=num_P) # [dimensionless = vpar/v]
+
+        # Correct E grid:
+        # Create E grid at center of cell so that the inverse transform method does not return negative energy values when sampling f4d
+        # de = e_1D[1]-e_1D[0]
+        # e_1D = e_1D + de/2
 
         # New (normalized) velocity and pitch angle grid:
         v_1D = (np.sqrt(2*charge_electron_SI*(e_1D*1e3)/mass)/vnorm_SI) # [dimensionless]
@@ -1065,6 +1088,9 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     # What about for multiple ion species?
     fbm = construct_f4d(config,grid,rho,plot_flag,config['include_f4d'])
 
+    # This may not be needed as this operation happens in read_f() subroutine in FIDASIM
+    plasma['denf'] = fbm['denf']
+
     # Compute nbi dict from cqlinput:
     # ===============================
     nbi = construct_nbi(config)
@@ -1417,6 +1443,32 @@ def plot_plasma(config,grid,rho,plasma):
     plt.title('Ion temperature [keV]')
     fig.set_size_inches(4, 6)  # Width, Height in inches
     plt.savefig(config["output_path"] + 'ti.png')
+
+    # Plot neutral density profile:
+    fig = plt.figure(9)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['denn'] * plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0,25])
+    plt.xlabel('R [cm]')
+    plt.title('Neutral density')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'denn.png')
+
+    # Plot product of neutral and electron density profile:
+    fig = plt.figure(10)
+    plt.contourf(grid['r2d'], grid['z2d'], plasma['denn'] * plasma['dene'] * plasma['mask'])
+    plt.colorbar()
+    levels = np.linspace(0.01, 1, 10)
+    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
+    plt.clabel(contour_plot, inline=True, fontsize=8)
+    # plt.xlim([0,25])
+    plt.xlabel('R [cm]')
+    plt.title('Product of neutral and electron density')
+    fig.set_size_inches(4, 6)  # Width, Height in inches
+    plt.savefig(config["output_path"] + 'denn_x_dene.png')
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale.'''

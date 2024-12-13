@@ -48,6 +48,8 @@ end
 % Check for valid types
 if strcmp(source_type, 'birth')
     disp('Source type is birth');
+elseif strcmp(source_type,'birth_1')
+    disp('Source type is birth_1');
 elseif strcmp(source_type, 'sink')
     disp('Source type is sink');
 else
@@ -73,7 +75,7 @@ source_file_name = prefix + "_" + source_type + ".h5";
 source = struct();
 
 % Particle data:
-if strcmpi(source_type,"birth")
+if strcmpi(source_type,"birth") | strcmpi(source_type,"birth_1")
     source.n_birth = h5read(source_file_name,'/n_birth');
 else
     source.n_sink = h5read(source_file_name,'/n_sink');
@@ -105,6 +107,9 @@ if strcmpi(source_type,"birth")
     source.dens_full = permute(source.dens(1,:,:,:),[2 3 4 1]);
     source.dens_half = permute(source.dens(2,:,:,:),[2 3 4 1]);
     source.dens_third = permute(source.dens(3,:,:,:),[2 3 4 1]);
+elseif strcmpi(source_type,"birth_1")
+    % Birth_1 flux per unit volume profiles:
+    source.dens_dcx = permute(source.dens(4,:,:,:),[2 3 4 1]);   
 else
     % Rerrange data:
     sink.dens_1 = permute(source.dens(1,:,:,:),[2 3 4 1]);

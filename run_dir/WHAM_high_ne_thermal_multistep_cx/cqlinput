@@ -13,7 +13,7 @@
  noplots='enabled',
  ioutput=6,
  lrz=10 !number of radial surfaces for FPE
- mnemonic='WHAM2expander_NB100_nitr40npz2_iter0_sh02_iy300jx300lz120_i11'
+ mnemonic='WHAM2expander_NB100_nitr40npz2_iter0_sh09_iy300jx300lz120_yup5'
  special_calls='disabled'
  nlrestrt= 'disabled'
  nlwritf= 'ncdfdist'
@@ -90,10 +90,10 @@
  !It is suggested to use ephicc(rho)~(5-7)*Te(rho)
  ephi_itr='enabled' !To enable iterations of ephicc
  ephi_rlx=0.9 !0.1 !Used in iterations of ephicc
-   iter_max_ephi=0 !3 !!was5 !N. of PHI iterations per time step
+   iter_max_ephi=0 !!was5 !N. of PHI iterations per time step
    nitr_ephi=40 !!was10 !N. of time steps with Method#1
    npz_ephi= 2  !!was10 ! In case nitr_ephi>nstop - Method#1 only
-   ephi_rlx_sh=0.2 !0.9 !0.5 !!=0.1(default)
+   ephi_rlx_sh=0.9 !0.5 !!=0.1(default)
    nstart_iter_phi=0 !was=3(default)
  fds=.2,
  fmass(1)=3.3433e-24,
@@ -172,14 +172,12 @@
  noffel=10000,
  nonel=10000,
  nonvphi=2 !To update FREYA deposition at each t !By def., vphic==0.(iprovphi="disabled")
- ! nplot=   6,10,50,70,100,200,300,400,1200
- ! nplt3d=1,6,10,50,70,100,200,300,400,1200
- nplot= 1,3,6,9,11,13,15,20,25,30
- nplt3d=1,3,6,9,11,13,15,20,25,30
+ nplot=   6,10,50,70,100,200,300,400,1200
+ nplt3d=1,6,10,50,70,100,200,300,400,1200
  npwr=2.,2.,2.,2.,
  nrskip=0,
  nrstrt=1,
- nstop=30 !200 !1000,
+ nstop=400 !200 !1000,
  numby=30,
  nv=9,
  partner='disabled',
@@ -308,7 +306,8 @@
 ! b00_mirror=!B00[G] at R=0,Z=0 (for eqsource="mirror1" model)
  fpsimodl='constant',
  methflag=10,
- nconteq='psigrid',
+ nconteq='disabled',
+ nconteqn=101
  rbox=40. ! sets the position of rho=1 in mirror1 model
  rboxdst=0.,
  rmag=0.,

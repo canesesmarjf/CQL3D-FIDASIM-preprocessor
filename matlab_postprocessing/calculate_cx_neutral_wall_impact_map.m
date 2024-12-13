@@ -1,4 +1,4 @@
-function [theta_bins, z_bins, particle_flux_map, energy_flux_map] = ...
+function [theta_bins, z_bins, particle_flux_map, energy_flux_map,power_on_wall] = ...
     calculate_cx_neutral_wall_impact_map(vessel_geom, sink, nz, ntheta)
 
     % This function takes in the sink source, the vacuum vessel geometry
@@ -39,6 +39,13 @@ function [theta_bins, z_bins, particle_flux_map, energy_flux_map] = ...
     marker_weight =  sink.weight(ii_rng).* sink.energy(ii_rng)*(1e3)*e_c; % [W/s]
     [~, ~, cx_energy_flux_wall] = accumulate_impact_vector(impact_vector_rphiz(ii_rng,:), vessel_geom, marker_weight, ntheta, nz);
     energy_flux_map = cx_energy_flux_wall/(dz*ds); % [W-cm^{-2}]
+     
+    % Calculte power on walls:
+    % =========================================================================
+    power_on_wall.cyl = sum(marker_weight); % [W]
+    ii_rng = find(impact_surface == 2 | impact_surface == 3);
+    marker_weight =  sink.weight(ii_rng).* sink.energy(ii_rng)*(1e3)*e_c; % [W/s]
+    power_on_wall.circ = sum(marker_weight); % [W]
 end
 
 function [impact_vector, impact_surface] = calculate_impact_vector_on_cylinder(p, v, vessel_geom)

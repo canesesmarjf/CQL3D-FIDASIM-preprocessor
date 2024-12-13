@@ -9,7 +9,7 @@ function [phi,bflux,bflux_LCFS,R_lcfs,Z_lcfs] = ...
     
     % Obtain edge of plasma:
     R = plasma.r2d(:,1);
-    zz_mid = round(size(plasma.dene,1)/2); % z index of midplane
+    zz_mid = round(size(plasma.dene,2)/2); % z index of midplane
     ne_R = plasma.dene(:,zz_mid); % Radial plasma profile at midplane (z=0m)
     rr_edge = find(ne_R > ne_edge,1,'last'); % r index for plasma edge
     r_edge = R(rr_edge); % Radius at plasma edge

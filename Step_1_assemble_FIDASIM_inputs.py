@@ -27,12 +27,16 @@ if len(sys.argv) == 1:
     print("No command line arguments provided. Using internal values.")
 
     # User input:
-    run_id = "WHAM_low_ne_thermal"
-    run_id = "WHAM_wall_flux_cold_plasma"
-    run_id = "WHAM_low_ne_nonthermal"
+    # run_id = "WHAM_low_ne_thermal"
+    # run_id = "WHAM_wall_flux_cold_plasma"
+    # run_id = "WHAM_low_ne_nonthermal"
+    #
+    # fidasim_run_dir = "./fidasim_files/" + run_id
+    # cql3d_run_dir   = "./cql3d_files/" + run_id
 
-    fidasim_run_dir = "./fidasim_files/" + run_id
-    cql3d_run_dir   = "./cql3d_files/" + run_id
+    run_id = "WHAM_high_ne_nonthermal_multistep_cx"
+    fidasim_run_dir = "./run_dir/" + run_id
+    cql3d_run_dir   = "./run_dir/" + run_id
 
     args.fida_run_dir = fidasim_run_dir
     args.cql_run_dir = cql3d_run_dir

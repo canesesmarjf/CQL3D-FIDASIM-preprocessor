@@ -65,4 +65,29 @@ for ii = 1:size(beam_grid.vertices,2)
     beam_grid.vertices_uvw(:,ii) = beam_grid.origin_uvw + beam_grid.basis*beam_grid.vertices(:,ii);
 end
 
+% Compute a beam grid in XYZ:
+beam_grid.nx = inputs.nx;
+beam_grid.xmin = inputs.xmin;
+beam_grid.xmax = inputs.xmax;
+beam_grid.ny = inputs.ny;
+beam_grid.ymin = inputs.ymin;
+beam_grid.ymax = inputs.ymax;
+beam_grid.nz = inputs.nz;
+beam_grid.zmin = inputs.zmin;
+beam_grid.zmax = inputs.zmax;
+beam_grid.dx = (inputs.xmax - inputs.xmin)/inputs.nx;
+beam_grid.dy = (inputs.ymax - inputs.ymin)/inputs.ny;
+beam_grid.dz = (inputs.zmax - inputs.zmin)/inputs.nz;
+
+ii = 1:1:beam_grid.nx;
+beam_grid.x = beam_grid.xmin + (ii-0.5)*beam_grid.dx;
+
+ii = 1:1:beam_grid.ny;
+beam_grid.y = beam_grid.ymin + (ii-0.5)*beam_grid.dy;
+
+ii = 1:1:beam_grid.nz;
+beam_grid.z = beam_grid.zmin + (ii-0.5)*beam_grid.dz;
+
+% Compute beam grid in UVW:
+
 end

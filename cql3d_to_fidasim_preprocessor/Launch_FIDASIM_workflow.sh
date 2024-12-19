@@ -26,14 +26,20 @@ echo ""
 # In what follows, we have four steps:
 # ============================================================
 # ============================================================
-# STEP 0- Check the value of various env variables and set defaults
+# STEP 0- Set the environment needed to run preprocessor
 # STEP 1- Run preprocessor script to produce input files for FIDASIM
 # STEP 2- Run FIDASIM
 # STEP 3- Save sources and sinks in text files for CQL3DM
 
 # ===================================================================
-# STEP 0:
+# STEP 0: SET THE ENVIRONMENT
 # ===================================================================
+
+# Setup CONDA python environment needed to run the FIDASIM-CQL3DM preprocessor:
+# Initialize Conda
+source ~/miniconda3/etc/profile.d/conda.sh
+# Activate the Conda environment
+conda activate FIDASIM_env
 
 # When running FIDASIM in standalone mode, check for the following special variables:
 # FIDASIM_RUN_PREPROCESSOR
@@ -41,7 +47,7 @@ echo ""
 # FIDASIM_SRCS_TO_TXT
 # FIDASIM_DEBUG
 
-# If the above en vars are not defined, make them 1 by default, except the debug mode:
+# If the above env vars are not defined, make them 1 by default, except the debug mode:
 if [[ -z "$FIDASIM_RUN_PREPROCESSOR" ]]; then
     export FIDASIM_RUN_PREPROCESSOR=1
     echo "FIDASIM_RUN_PREPROCESSOR is not set. Setting to default: 1"
@@ -50,19 +56,14 @@ if [[ -z "$FIDASIM_RUN_EXEC" ]]; then
     export FIDASIM_RUN_EXEC=1
     echo "FIDASIM_RUN_EXEC is not set. Setting to default: 1"
 fi
-if [[ -z "$FIDASIM_RUN_SRCS_TO_TEXT" ]]; then
-    export FIDASIM_RUN_SRCS_TO_TEXT=1
-    echo "FIDASIM_RUN_SRCS_TO_TEXT is not set. Setting to default: 1"
+if [[ -z "$FIDASIM_RUN_SRCS_TO_TXT" ]]; then
+    export FIDASIM_RUN_SRCS_TO_TXT=1
+    echo "FIDASIM_RUN_SRCS_TO_TXT is not set. Setting to default: 1"
 fi
 if [[ -z "$FIDASIM_DEBUG" ]]; then
     export FIDASIM_DEBUG=0
     echo "FIDASIM_DEBUG is not set. Setting to default: 0"
 fi
-
-## If debug flag is not set, make it empty:
-#if [ -z "$DEBUG_FLAG" ]; then
-#  DEBUG_FLAG="" #"--debug"
-#fi
 
 # Print environmental variables::
 [ -z "$RUN_ID" ] && echo "RUN_ID: not set" || echo "RUN_ID: $RUN_ID"
@@ -72,13 +73,14 @@ fi
 # ===================================================================
 # STEP 1: Run preprocessor script to produce input files for FIDASIM:
 # ===================================================================
-# Requires the following:
-# 1- [file] run_id_config.nml (FIDASIM run configuration file)
-# 2- [file] run_id_cql_config.nml (CQL3D run configuration file)
+# Step 1 requires the following:
+# 1- [file] <RUN_ID>_config.nml (FIDASIM run configuration file)
+# 2- [file] <RUN_ID>_cql_config.nml (CQL3D run configuration file)
 # 3- [repo] cql3d-fidasim-preprocessor (python)
 # 4- [repo] FIDASIM installation (fortran)
 # 5- [file] cqlinput
 # 6- [file] eqdsk
+# *- [python env manager] CONDA (needed to setup required python packages
 
 # INPUT:
 # The following files from CQL3D are needed for this step, where <mnemonic> refers to the "mnemonic"
@@ -89,12 +91,12 @@ fi
 
 # OUTPUT:
 # The output product for this step is the following:
-# - run_id_distribution.h5 (4D distribution function)
-# - run_id_equilibrium.h5 (equilibrium file: plasma density, neutral gas and magnetic field profiles)
-# - run_id_geometry.h5 (NBI geometry)
-# - run_id_inputs.dat (FIDASIM input namelist)
+# - <RUN_ID>_distribution.h5 (4D distribution function)
+# - <RUN_ID>_equilibrium.h5 (equilibrium file: plasma density, neutral gas and magnetic field profiles)
+# - <RUN_ID>_geometry.h5 (NBI geometry)
+# - <RUN_ID>_inputs.dat (FIDASIM input namelist)
 
-python_package="cql3d_to_fidasim_preprocessor"
+PYTHON_PACKAGE="cql3d_to_fidasim_preprocessor"
 if [[ "$FIDASIM_RUN_PREPROCESSOR" == "1" ]]; then
   echo ""
   echo "Step 1: Running A_assemble_FIDASIM_inputs.py"
@@ -106,7 +108,7 @@ if [[ "$FIDASIM_RUN_PREPROCESSOR" == "1" ]]; then
       PLOT_FLAG=""
   fi
 
-  STEP_1="python $PREPROCESSOR_DIR/$python_package/A_assemble_FIDASIM_inputs.py"
+  STEP_1="python $PREPROCESSOR_DIR/$PYTHON_PACKAGE/A_assemble_FIDASIM_inputs.py"
   $STEP_1 --fida-run-dir $FIDASIM_RUN_DIR --cql-run-dir $CQL3D_RUN_DIR --fidasim-dir $FIDASIM_DIR $PLOT_FLAG
   if [ $? -ne 0 ]; then
       echo "Error: A_assemble_FIDASIM_inputs.py failed"
@@ -133,7 +135,7 @@ if [[ "$FIDASIM_RUN_EXEC" == "1" ]]; then
       DEBUG_FLAG=""
   fi
 
-  STEP_2="$PREPROCESSOR_DIR/$python_package/B_run_FIDASIM.sh"
+  STEP_2="$PREPROCESSOR_DIR/$PYTHON_PACKAGE/B_run_FIDASIM.sh"
   $STEP_2 --fida-run-dir $FIDASIM_RUN_DIR --parallel-mode openmp -n $NUM_THREADS --executable $FIDASIM_DIR/fidasim $VERBOSE_FLAG $DEBUG_FLAG
   if [ $? -ne 0 ]; then
       echo "Error: B_run_FIDASIM.sh failed"
@@ -145,11 +147,11 @@ fi
 # Step 3: Save sources and sinks into text file (.dat):
 # ============================================================
 # Using the files outputted by FIDASIM in STEP 2. we can now write the text files needed for CQL3DM:
-if [[ "$FIDASIM_RUN_SRCS_TO_TEXT" == "1" ]]; then
+if [[ "$FIDASIM_RUN_SRCS_TO_TXT" == "1" ]]; then
   echo ""
   echo "Step 2: Running C_save_sources_and_sinks.py"
   echo "--------------------------------------------"
-  STEP_3="python $PREPROCESSOR_DIR/$python_package/C_save_sources_and_sinks.py"
+  STEP_3="python $PREPROCESSOR_DIR/$PYTHON_PACKAGE/C_save_sources_and_sinks.py"
   $STEP_3 --fida-run-dir $FIDASIM_RUN_DIR --cql-run-dir $CQL3D_RUN_DIR
   if [ $? -ne 0 ]; then
       echo "Error: C_save_sources_and_sinks.py failed"

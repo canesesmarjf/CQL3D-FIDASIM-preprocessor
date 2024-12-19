@@ -1,8 +1,0 @@
-&cql3d_files
-  cqlinput = "cqlinput"
-  eqdsk_file_name = "eqdsk_wham_expander"
-  eqdsk_type = 1 !(1) mirror or (2) toroidal
-  plasma_file_name = ""
-  f4d_ion_file_name = ""
-  f4d_electron_file_name = ""
-/

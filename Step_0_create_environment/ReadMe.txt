@@ -16,7 +16,7 @@ Follow these steps to setup the environment required to run CQL3D-FIDASIM-PREPRO
 
         (FIDASIM_env) jfcm@Tanooki:~$
 
-2 - Create environmental variable for the CQL3D-FIDASIM-PREPROCESSIR repo by adding the following to your .bashrc:
+2 - Create environmental variable for the CQL3D-FIDASIM-PREPROCESSOR repo by adding the following to your .bashrc:
 
     export PREPROCESSOR_DIR=/path/to/preprocessor_repo
 

@@ -1,0 +1,447 @@
+!
+
+! 2016 example of NBI in a mirror machine, adjusted to WHAM eqdsk and plasma,
+! In subsequent run, will add FW as in the following comments.
+! through damping of FW on fast D ions produced by NBI (or tail of Maxw D).
+! Use newly added option eqsource="mirror1" (for machine='mirror').
+! The run uses rffile(1)="genray.nc" with ray data
+! produced by Genray-C run with the same equilibrium
+! (see model_b=3 in Genray-C).
+!
+
+ $setup0
+ noplots='enabled',
+ ioutput=6,
+ lrz=10 !number of radial surfaces for FPE
+ mnemonic='WHAM2expander_NB100_nitr40npz2_iter0_sh02_iy300jx300lz120_i11'
+ special_calls='disabled'
+ nlrestrt= 'disabled'
+ nlwritf= 'ncdfdist'
+ !Don't use netcdfshort.ne."disabled", if going to restart (default=disabled)
+ !chang='noneg' is not compatible with restart option, use 'enabled'
+ !urfdmp='secondd' is incompatible with restart option, use 'firstd'
+ &end
+
+ &setup
+! For Fusion sightline diagnostics:
+  fus_diag='disabled' !'enabled',
+  nv_fus = 71 ! sight lines
+  x_fus = 71*40.  ! detector position (cm)
+  z_fus=-240.        , -233.1 -226.2, -219.4,
+       -212.5, -205.7, -198.8, -192.        ,
+       -185.1, -178.2, -170.4, -164.5,
+       -157.7, -150.8, -144.        , -136.2,
+       -130.2, -123.4, -116.5, -109.7,
+       -102.8, -96.        , -89.1, -82.3,
+       -77.5, -68.6, -61.7, -54.8,
+       -48.        , -41.1,  -34.2,  -27.4,
+        -20.5,  -13.7,  -6.8,    0.        ,
+         6.8,   13.7,   20.5,   27.4,
+         34.2,  41.1,  48.        ,  54.8,
+        61.7,  68.5,  75.4,  82.2,
+        89.1,  96.        ,  102.8,  109.7,
+        116.5,  123.4,  130.2,  137.1,
+        144.        ,  150.8,  157.7,  164.5,
+        171.4,  178.2,  185.1,  192.        ,
+        198.8,  205.7,  212.5,  219.4,
+        226.2,  233.1,  240. ! detector position (cm)
+  thet1_fus=71*90. ! 90deg is along equatorial plane
+  thet2_fus=71*180.
+  fds_fus=0.5, ! step, as a fraction of radial bin width
+  ! done - for Fusion sightline diagnostics
+ acoefne=-1.80,-7.83,+051.57,-353.68
+ acoefte=8.01,-13.60,+08.69,-114.59
+ bnumb(1)=+1., !D
+ bnumb(2)=-1., !e
+! bnumb(3)=+1., !D_M
+! bnumb(4)=-1., !e_M
+ bootst='disabled',
+! bth=2.e+3,
+! btor=2.e+4,
+ chang='enabled', !chang=noneg is not compatible with restart option
+ colmodl=0, !3,
+! contrmin=1.e-12,
+ contrmin=1.e-6,
+ dtr=1.e-3 !---------------- 1ms step looks good enough
+ eegy(1,1,1,1)=0.,  !eegy(ny=1:3,1:2,k,lr_) For pltdn=enabled plots only
+ eegy(1,2,1,1)=6.,
+ eegy(2,1,1,1)=6.,
+ eegy(2,2,1,1)=240.,
+ eegy(3,1,1,1)=0.
+ eegy(3,2,1,1)=240.
+!Following 4 values of eegy continue above lr_=1 values to lrz
+ eegy(1,1,1,2)=0.,
+ eegy(1,2,1,2)=0.,
+ eegy(2,1,1,2)=0.,
+ eegy(2,2,1,2)=0.,
+ eegy(3,1,1,2)=0.,
+ eegy(3,2,1,2)=0.,
+ elecfld(0)=0.e-15,
+ elecfld(1)=0.e-15,
+! enein=1.53e13,1.50e13,1.43e13,1.20e13,.5e13,.01e13,
+ enloss(1)=200.,
+ enmax=400.,
+ enmin=40.,
+! enorm=50.,
+ enormi=300. !=30*Ti !Ions are heated to <energy>=2MeV or higher
+ enorme=100. !30. !=30*Te !Electrons are heated to <energy>=10keV
+ eoved=.00,
+ ephicc(1)=6.,6.,6.,6.,6.,6.,6.,6.,6.,6., ![kV] For each lr (each rho)
+ !It is suggested to use ephicc(rho)~(5-7)*Te(rho)
+ ephi_itr='enabled' !To enable iterations of ephicc
+ ephi_rlx=0.9 !0.1 !Used in iterations of ephicc
+   iter_max_ephi=0 !3 !!was5 !N. of PHI iterations per time step
+   nitr_ephi=40 !!was10 !N. of time steps with Method#1
+   npz_ephi= 2  !!was10 ! In case nitr_ephi>nstop - Method#1 only
+   ephi_rlx_sh=0.2 !0.9 !0.5 !!=0.1(default)
+   nstart_iter_phi=0 !was=3(default)
+ fds=.2,
+ fmass(1)=3.3433e-24,
+ fmass(2)=9.1095e-28,
+! fmass(3)=3.3433e-24, !D_M
+! fmass(4)=9.1095e-28, !e_M
+ gamaset=15.,
+! iactst='enabled',
+! idskf='dskout',
+  f4d_out='enabled' !---------- May create huge *.nc file
+  nr_f4d=10 !R grid to save f4d
+  nz_f4d=121 !Z grid to save f4d
+  nv_f4d=120 !60 !v grid to save f4d
+  nt_f4d=60 !theta grid to save f4d
+
+ implct='enabled',
+ ineg='enabled0' !'trunc_d',
+ iprozeff='disabled'
+ iprone='parabola',
+ iprote='parabola',
+ iproti='parabola',
+ ipxy=51
+ jpxy=51
+ irzplt(1)=1,
+! irzplt(2)=3,
+! irzplt(3)=8,
+! irzplt(4)=5,
+! irzplt(5)=7,
+! irzplt(6)=10,
+! irzplt(7)=0
+! irzplt(8)=0
+ isigmas(1)=1, !compute d+t => alpha+n (gives source of He4, species k=3)
+ isigmas(3)=1, !compute d+d => t+p     (gives source of T,   species k=2)
+ isigmas(4)=1, !compute d+d => he3+n
+ isigsgv1=0 !Compute reactions of general with self and other gen
+ isigsgv2=1 !not needed
+ iy=300 !250 !200
+! iy_fus_src=120
+ izeff='backgrnd',
+ jx=300 !150 !1000
+ kfrsou(1)=1, !1st beam is at this gen.ion <--> k=1 (D)
+! kfrsou(2)=2, !2nd beam is at this gen.ion <--> k=2 (T)
+ kpress(1)='disabled',   !Only used for eqdskalt=enabled?
+ kpress(2)='disabled',
+! kpress(3)='disabled',
+! kpress(4)='disabled',
+ kspeci(1,1)='d',kspeci(2,1)='general', !---- D
+ kspeci(1,2)='e',kspeci(2,2)='general',
+! kspeci(1,3)='d',kspeci(2,3)='maxwell',
+! kspeci(1,4)='e',kspeci(2,4)='maxwell',
+ lbdry(1)='conserv' 'conserv' 'conserv' 'conserv' !Losses can be compensated by NBI src
+ locquas='disabled' !'enabled',
+ lossmode(1)='mirrorz','mirrorz','mirrorz','mirrorz'  !! for k=1:4
+ !NEED to set lossmode for all ngen species,
+ !if you want losses to be evaluated in a similar way!
+ xsink=0.2
+ lz=120 !60, !30,
+ machine='mirror', ! and use eqsource="mirror1"
+ mirr_expnd='enabled' ![2024-04-10] set to enabled if expander is present
+ manymat='disabled'
+ meshy='free',
+ mmsv=10
+ mpwr=.5,2.,2.,2.
+ mx=10,
+ nchec=1,
+ ncoef=1,
+ ncont=30,
+ negyrg=3
+ nen=30,
+ netcdfnm='enabled'
+ ngen=2,
+ njene=6,
+ njte=6,
+ njti=6,
+ nmax=0, !No Maxw.species (use fully non-lin coll. operator)
+ noffel=10000,
+ nonel=10000,
+ nonvphi=2 !To update FREYA deposition at each t !By def., vphic==0.(iprovphi="disabled")
+! nplot=   6,10,50,70,100,200,300,400,1200
+! nplt3d=1,6,10,50,70,100,200,300,400,1200
+ nplot= 0,1,3,5,7,11,13,16,20,50
+ nplt3d=0,1,3,5,7,11,13,16,20,50
+ npwr=2.,2.,2.,2.,
+ nrskip=0,
+ nrstrt=1,
+ nstop=50 !400 !200 !1000,
+ numby=30,
+ nv=9,
+ partner='disabled',
+ plt3d='enabled',
+ pltd='color' !'df_color',
+ pltdn='enabled',
+ pltdnpos='Z/Zmax'
+ pltend='enabled',
+ pltfvs='enabled',
+ pltinput='enabled',
+ pltlim='u/c'
+ pltlimm(1)=0.01,0.4 !Each k! D:0.02<->376keV !Same units as pltlim
+ pltmag=1.,
+ pltpowe='last',
+! pltprpp='enabled', !  plot reduced distribution f-parallel
+ pltrays='enabled'
+ pltrst='disabled',
+ pltsig='enabled',
+ pltstrm='disabled',
+ plturfb='color'
+! pltvecal='enabled',
+! pltvecc='enabled' ! vector flux plot for collisions
+ pltvece='disabled',
+ pltvecrf='disabled',
+ pltvflu='disabled',
+ pltvs='rho',
+ profpsi='disabled',
+ psimodel='spline',
+ qsineut='disabled',
+! radmaj=170.,
+! radmin=160.,
+ rd=45.,
+ reden(1,0)=  6.d13, !6.d13 !D_gen
+ reden(1,1)=  6.d13, !6.d13 !D_gen
+ reden(2,0)=  6.d13, !6.d13 !e_gen
+ reden(2,1)=  6.d13, !6.d13 !e_gen
+! reden(3,0)= 6.d12, !6.d13 !D_M
+! reden(3,1)= 6.d12, !6.d13 !D_M
+! reden(4,0)= 6.d12, !6.d13 !e_M
+! reden(4,1)= 6.d12, !6.d13 !e_M
+ relativ='enabled',
+ rfacz=1.,
+! rmirror=8.7346 ! 8.7346 corresponds to glb=35cm in mirror1 model
+! rmirror=20.  !
+ rovera=1.
+ roveram=1.1e-5  !.00,
+! rya(1)=.050,.100,.150,.175,.200,.225,.250,
+! rya(8)=.300,.35, .4,.5,.6,.7,.8,.9,
+ ryain=0.,.2,.4,.6,.8,1.0,
+ rzset='disabled',  ! means: automatic setting of rho grid (equispaced)
+ sigmamod='enabled',
+ softxry='disabled',
+ syncrad='disabled',
+ tandem='enabled'
+ tauloss(1,1)=0.,
+ tauloss(2,1)=0.,
+ tauloss(3,1)=0.,
+ tbnd=.002,
+! tein=1.5,1.1,.7,.4,.2,.1,
+ temp(1,0)= 2. !D_gen
+ temp(1,1)= 2. !D_gen
+ temp(2,0)= 1. !e_gen
+ temp(2,1)= 1. !e_gen
+!temp(3,0)= 2. !D_M
+!temp(3,1)= 2. !D_M
+!temp(4,0)= 1. !e_M
+!temp(4,1)= 1. !e_M
+ tfac=1.0,
+ tfacz=1.,
+ thet1=0.,0.,0.,0.,0.,0.,0.,0.,0.,
+ thet2=-1.1932,-1.0814,-.9894,-.9087,0.,.9087,.9894,1.0814,1.1932,
+! tiin=1.5,1.1,.7,.4,.2,.1,
+ torloss(1)='disabled',
+ veclnth=1.5,
+ xfac=.6, !Not used in tandem runs.
+ xlwr=.085,  !Will be reset in tandem runs, see ainvnorm
+ xmdl=.25,   !Will be reset in tandem runs, see ainvnorm
+ xpctlwr=.1, !Will be Reset in tandem runs, see ainvnorm
+ xpctmdl=.4, !Will be reset in tandem runs, see ainvnorm
+ ylower=1.22,
+ yreset='disabled',
+ yupper=1.275,
+ zmax=408.,
+ &end
+
+ &trsetup
+ difusr=2.e+17,
+ pinch='simple',
+ relaxden=1.,
+ relaxtsp='enabled',
+ transp='disabled',
+ advectr=1.,
+ &end
+
+ &sousetup
+ asor(1,1,1)=0.0e13,asor(1,2,1)=0.0e+13,
+ noffso(1,1)=10001,noffso(1,2)=10001, !see nonso(ngena,nsoa),noffso(ngena,nsoa)
+ noffso(2,1)=10001,noffso(2,2)=10001, !see nonso(ngena,nsoa),noffso(ngena,nsoa)
+ nonso(1,1)=0,nonso(1,2)=0,
+ nonso(2,1)=0,nonso(2,2)=0,
+ nso=1,
+ nsou=10000,
+ pltso='color' !'enabled',
+ scm2(1,1)=.001,scm2(1,2)=10000.,
+! sellm1(1,1)=1.,sellm1(1,2)=1.,
+! sellm2(1,1)=1.,sellm2(1,2)=1.,
+ sem1(1,1)=80.,sem1(1,2)=0.,
+ sem2(1,1)=1.,sem2(1,2)=25.,
+! seppm1(1,1)=1.,seppm1(1,2)=1.,
+! seppm2(1,1)=1.,seppm2(1,2)=1.,
+ soucoord='disabled' !'polar',
+ sthm1(1,1)=45.,sthm1(1,2)=0.,
+ szm1(1,1)=0.,szm1(1,2)=0.,
+ szm2(1,1)=0.1,szm2(1,2)=1.e+5,
+ &end
+
+ &eqsetup
+ atol=1.e-8,
+ ellptcty=0.,
+ eqmod='enabled',
+ bofs_tol=5.0
+ eqpower=2
+! eqsource='mirror1'
+ eqsource='eqdsk',
+ eqdskin='eqdsk_wham_expander' !'eqdsk_WHAM2_modelb2_B0.853T'
+! b00_mirror=!B00[G] at R=0,Z=0 (for eqsource="mirror1" model)
+ fpsimodl='constant',
+ methflag=10,
+ nconteq='psigrid',
+ rbox=40. ! sets the position of rho=1 in mirror1 model
+ rboxdst=0.,
+ rmag=0.,
+ rtol=1.e-8,
+ zbox=12.e2
+ &end
+
+ &rfsetup
+ call_lh='disabled',
+ call_ech='disabled',
+ call_fw='disabled',
+ dlndau=1.e-3,
+ lh='disabled',
+ ech='disabled',
+ fw='disabled',   !Use rftype below
+ iurfcoll='enabled'
+ iurfl='enabled',  !--------- For lin.damping on electrons
+ nbssltbl=8000,
+ nharm1=2  !3, !4, !1,
+ nharms=4, !5, !12, !damping is calc-ed for harmonics nharm1(i) to nharm1(i)+(nharms(i)-1)
+ nrfitr1=1000,
+ nrfitr2=0,
+ nrfitr3=0,
+ nrfpwr=0,
+ nrfstep1(1)=1000,
+ nrfstep1(2)=1000,
+ nrfstep2=0,
+ noffrf(1)=100000,
+ nonrf(1)=0, !Maybe set a delay?
+ nrf=0,
+ pwrscale(1)=300. !100. !500.  !Use 1000. for 1MW !-----------------
+ wdscale(1)=1.0
+ nrfspecies(1)=1     !-------------- D (but not e)
+ nurftime=5
+ pwrscale1(1)=0.1, 0.3, 0.5, 0.7, 1.0,  !---- Slow rise of RF power
+ urftime(1)=  5e-3,6e-3,7e-3,8e-3,9e-3,  ![sec]
+ rfread="netcdf"
+! rffile(1)="WHAM_phase2_2xW7AS_0p83B0_HHFWtest.nc"
+ rffile(1)="WHAM2.6.nc"
+ rftype(1)="fw"
+ scaleurf='enabled',
+ urfdmp='firstd', !'secondd' is not compatible with restart option
+ urfmod='disabled' !'disabled',
+ urfb_version=2, !1,
+ urfwrray='disabled',
+ istep_rayelt=10 !new option from [2022-12-07]
+!-------------------
+ vlfmod='disabled', ! -----------------
+ vlfmodes=1.,
+ vlfharms=1.,
+ vlfharm1=2.,
+ vlfnpvar='constant',
+ vlfdnorm(1)=1.d8 !0.5d9
+ vlffreq(1)=1.52e6 !2nd at B00=1kG(Z=R=0), 1st at 2kG(Z=+-50cm,R=0). CHECK b00_mirror
+ vlfnp(1)=8.  ! central parallel refractive index at minimum B
+ vlfdnp(1)=0.5,
+ vlfddnp(1)=.01,
+ vlfnperp(1)=1.0,
+ vlfeplus(1)=(1.,0.)
+ vlfemin=(0.,0.)
+ vlfpol(1)=0., !90.
+ vlfdpol(1)=120., !30.
+ vlfddpol(1)=10.
+!-------------------
+ vlhmod='disabled', ! -----------------
+ vlhprprp='parallel',
+ vlhpolmn=0.,
+ vlhpolmx=180.,
+ vparmax=.00524,
+ vparmin=.00442,
+ vprpmin=0.,
+ vprpmax=1.,
+ vprprop='disabled',
+ &end
+
+ &frsetup
+ aheigh(1,1)=10.,
+ alen(1,1)=50.0000
+ angleh(1)=0.0
+ anglev(1)=45.0000
+ ashape(1,1)='s-rect',
+ awidth(1,1)=10.,
+ bcur(1)=50.0000
+ bhdiv(1)=1.,
+ bheigh(1)=10.,
+ bhfoc(1)=173.137
+ bhofset(1)=0.0,
+ bleni(1)=10.0000
+ blenp(1)=50.0000
+ bmsprd=.1,
+ bptor(1)=0.1e6 !W
+ bshape(1)='rect',
+ bvdiv(1)=1,
+ bvfoc(1)=173.137
+ bvofset(1)=0.0,
+ bwidth(1)=10.,
+ ebkev(1)=25.0000
+! fbcur(1,1)=.74,   ! slight increase of full, for 65 keV,
+! fbcur(2,1)=.17,   ! interpolating from Deyong
+! fbcur(3,1)=.09,   !Total is 1.0
+ fbcur(1,1)=.85,   ! Need to check/update these guessed numbers
+ fbcur(2,1)=.1,    !
+ fbcur(3,1)=.05,
+ frmod='enabled',   !------------------
+ frsink_cx='enabled' !---[2023-03-07]
+ r_cx=0.7 != rate_cx/(rate_cx + rate_impact) ![2023-03-11]
+ frplt='enabled',
+ ibcur=1     iborb=0,
+ iexcit=5,
+ inubpat=0,
+ multiply='disabled',
+ naptr=1,
+ nbeams=1,
+ nfrplt=1000,
+ nimp=0,
+ npart=500000, !50000,
+ nprim=1,
+ npskip=1,
+ nsourc=1,
+ rpivot(1)=80.0000
+ sfrac1(1)=1.0,
+ smooth=.125,
+ zpivot(1)=-80.0000
+ src_nbi_e='enabled' !Add source to e_general, to match NBI sources
+ read_birth_pts="enabled"
+ read_birth_data_type="fidasim"
+ nbirth_pts=300000
+ nbirth_pts_files=1
+ birth_pts_files(1)="Ion_birth_points_FIDASIM.dat"
+ &end
+end
+end
+end
+LEAVE
+THESE
+HERE!

@@ -24,14 +24,6 @@ export START_DIR=$PWD
 export NUM_THREADS
 export PREPROCESSOR_PLOT
 
-# Setup CONDA python environment:
-# ===========================================================
-# This is required to run the FIDASIM-CQL3DM preprocessor
-# Initialize Conda
-source ~/miniconda3/etc/profile.d/conda.sh
-# Activate the Conda environment
-conda activate FIDASIM_env
-
 # Run CQL3D:
 # ===========================================================
 # Initialize run and time it:

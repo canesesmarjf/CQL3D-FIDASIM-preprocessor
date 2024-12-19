@@ -39,9 +39,9 @@ echo ""
 # FIDASIM_RUN_PREPROCESSOR
 # FIDASIM_RUN_EXEC
 # FIDASIM_SRCS_TO_TXT
+# FIDASIM_DEBUG
 
-# If the above are undefined, provide them with default values equal to 1.
-# This means that the FIDASIM workflow will include all processes by default:
+# If the above en vars are not defined, make them 1 by default, except the debug mode:
 if [[ -z "$FIDASIM_RUN_PREPROCESSOR" ]]; then
     export FIDASIM_RUN_PREPROCESSOR=1
     echo "FIDASIM_RUN_PREPROCESSOR is not set. Setting to default: 1"
@@ -54,17 +54,20 @@ if [[ -z "$FIDASIM_RUN_SRCS_TO_TEXT" ]]; then
     export FIDASIM_RUN_SRCS_TO_TEXT=1
     echo "FIDASIM_RUN_SRCS_TO_TEXT is not set. Setting to default: 1"
 fi
-
-# If debug flag is not set, make it empty:
-if [ -z "$DEBUG_FLAG" ]; then
-  DEBUG_FLAG="" #"--debug"
+if [[ -z "$FIDASIM_DEBUG" ]]; then
+    export FIDASIM_DEBUG=0
+    echo "FIDASIM_DEBUG is not set. Setting to default: 0"
 fi
+
+## If debug flag is not set, make it empty:
+#if [ -z "$DEBUG_FLAG" ]; then
+#  DEBUG_FLAG="" #"--debug"
+#fi
 
 # Print environmental variables::
 [ -z "$RUN_ID" ] && echo "RUN_ID: not set" || echo "RUN_ID: $RUN_ID"
 [ -z "$FIDASIM_RUN_DIR" ] && echo "FIDASIM_RUN_DIR: not set" || echo "FIDASIM_RUN_DIR: $FIDASIM_RUN_DIR"
 [ -z "$CQL3D_RUN_DIR" ] && echo "CQL3D_RUN_DIR: not set" || echo "CQL3D_RUN_DIR: $CQL3D_RUN_DIR"
-[ -z "$DEBUG_FLAG" ] && echo "DEBUG_FLAG: not set" || echo "DEBUG_FLAG: $DEBUG_FLAG"
 
 # ===================================================================
 # STEP 1: Run preprocessor script to produce input files for FIDASIM:
@@ -119,6 +122,16 @@ if [[ "$FIDASIM_RUN_EXEC" == "1" ]]; then
   echo ""
   echo "Step 2: Running B_run_FIDASIM.sh"
   echo "--------------------------------------------"
+
+  if [[ "$FIDASIM_DEBUG" == "1" ]]; then
+      DEBUG_FLAG="--debug"
+      echo ""
+      echo "========================="
+      echo "FIDASIM debugging enabled"
+      echo "========================="
+  else
+      DEBUG_FLAG=""
+  fi
 
   STEP_2="$PREPROCESSOR_DIR/$python_package/B_run_FIDASIM.sh"
   $STEP_2 --fida-run-dir $FIDASIM_RUN_DIR --parallel-mode openmp -n $NUM_THREADS --executable $FIDASIM_DIR/fidasim $VERBOSE_FLAG $DEBUG_FLAG

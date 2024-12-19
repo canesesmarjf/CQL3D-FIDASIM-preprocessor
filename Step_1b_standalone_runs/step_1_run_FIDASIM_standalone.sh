@@ -8,26 +8,22 @@
 # ============================================================
 
 # Define run ID:
-RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
-# RUN_ID="WHAM_high_ne_thermal_multistep_cx"
-# RUN_ID="WHAM_high_ne_nonthermal"
-# RUN_ID="WHAM_wall_flux_cold_plasma_multistep_cx"
-# RUN_ID="WHAM_low_ne_nonthermal"
-# RUN_ID="WHAM_low_ne_thermal"
-# RUN_ID="WHAM_wall_flux_cold_plasma"
-# RUN_ID="WHAM_example_1"
+#RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
+RUN_ID="WHAM_NBI_kunal"
 
-# Number of threads and debugging:
+# Number of threads:
 NUM_THREADS=20
-DEBUG_FLAG="" #"--debug"
 
 # FIDASIM processes to run in the workflow:
 FIDASIM_RUN_PREPROCESSOR=1
-FIDASIM_RUN_EXEC=0
+FIDASIM_RUN_EXEC=1
 FIDASIM_RUN_SRCS_TO_TEXT=0
 
 # If running preprocessor, enable plotting output:
 PREPROCESSOR_PLOT=1
+
+# Enable debugging FIDASIM with linaro forge ddt:
+FIDASIM_DEBUG=0
 
 # ============================================================
 # ============================================================

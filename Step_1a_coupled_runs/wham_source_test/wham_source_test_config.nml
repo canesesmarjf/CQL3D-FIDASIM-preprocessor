@@ -1,5 +1,5 @@
 &fidasim_run_info
-  comment = "WHAM case with high ne and using f4d to calculate CX sinks"
+  comment = "WHAM case with high ne and using f4d to calculate CX sinks. testing the exchange of a new source file"
 /
 
 &preprocessor_output
@@ -41,7 +41,7 @@
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
   n_nbi = 50e3
-  n_birth = 100e3
+  n_birth = 50e3
   n_dcx = 50e3
   n_halo = 50e3
 /

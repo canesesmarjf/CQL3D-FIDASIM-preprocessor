@@ -151,5 +151,4 @@ filename = cql_run_dir + "/" + "Ion_birth_points_FIDASIM.dat"
 # ======================================================================================================================
 np.savetxt(filename, data, delimiter=" ", fmt=fmt, header=header, comments="")
 
-
 print("End of script")

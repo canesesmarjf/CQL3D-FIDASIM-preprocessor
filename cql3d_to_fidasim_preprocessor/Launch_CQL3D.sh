@@ -27,19 +27,45 @@ export PREPROCESSOR_PLOT
 # Run CQL3D:
 # ===========================================================
 # Initialize run and time it:
-cd $CQL3D_RUN_DIR
-if [[ "$CLI_TO_TXT" == "1" ]]; then
-    echo "CLI_TO_TXT is set to 1. Recording CLI output to text file log.txt ..."
-    time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64 > log.txt 2>&1 &
-elif [[ "$CLI_TO_TXT" == "0" ]]; then
-      echo "CLI_TO_TXT is set to 0. NOT Recording CLI output ..."
-    time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
-elif [[ -z "$CLI_TO_TXT" ]]; then
-    echo "CLI_TO_TXT is empty. Do not record CLI output to text file ..."
-    time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+# cd $CQL3D_RUN_DIR
+# if [[ "$CLI_TO_TXT" == "1" ]]; then
+#     echo "CLI_TO_TXT is set to 1. Recording CLI output to text file log.txt ..."
+#     time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64 > log.txt 2>&1 &
+# elif [[ "$CLI_TO_TXT" == "0" ]]; then
+#       echo "CLI_TO_TXT is set to 0. NOT Recording CLI output ..."
+#     time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+# elif [[ -z "$CLI_TO_TXT" ]]; then
+#     echo "CLI_TO_TXT is empty. Do not record CLI output to text file ..."
+#     time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+# else
+#     echo "CLI_TO_TXT has an unexpected value: $CLI_TO_TXT"
+#     echo "CQL3D run has been terminated ..."
+#     # Handle any other unexpected values if necessary
+# fi
+# cd $START_DIR
+
+# Run CQL3D:
+# ===========================================================
+if [[ "$DEBUG_CQL3D" == "1" ]]; then
+    echo "DEBUG_CQL3D is set to 1. Running CQL3D in debug mode with ddt..."
+    cd $CQL3D_RUN_DIR
+    time ddt --connect mpirun -n $NUM_PROCS $CQL3DM_DIR/$EXECUTABLE
+    cd $START_DIR
 else
-    echo "CLI_TO_TXT has an unexpected value: $CLI_TO_TXT"
-    echo "CQL3D run has been terminated ..."
-    # Handle any other unexpected values if necessary
+    cd $CQL3D_RUN_DIR
+    if [[ "$CLI_TO_TXT" == "1" ]]; then
+        echo "CLI_TO_TXT is set to 1. Recording CLI output to text file log.txt ..."
+        time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64 > log.txt 2>&1 &
+    elif [[ "$CLI_TO_TXT" == "0" ]]; then
+        echo "CLI_TO_TXT is set to 0. NOT Recording CLI output ..."
+        time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+    elif [[ -z "$CLI_TO_TXT" ]]; then
+        echo "CLI_TO_TXT is empty. Do not record CLI output to text file ..."
+        time mpirun -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+    else
+        echo "CLI_TO_TXT has an unexpected value: $CLI_TO_TXT"
+        echo "CQL3D run has been terminated ..."
+        # Handle any other unexpected values if necessary
+    fi
+    cd $START_DIR
 fi
-cd $START_DIR

@@ -8,11 +8,12 @@ addpath(genpath("./matlab_postprocessing/"));
 
 save_neutral_figs = 0;
 save_cx_impact_figs = 0;
-calc_impact_vectors = 1;
+calc_impact_vectors = 0;
 plot_plasma = 1;
 plot_fields = 0;
 
 scenario = 5.2;
+scenario = 8;
 
 switch scenario
     case 1
@@ -54,7 +55,11 @@ switch scenario
     case 7.1
         run_id = "WHAM_wall_flux_cold_plasma_multistep_cx";
         fidasim_run_dir  = "./run_dir/" + run_id + "/";
-        cql3d_run_dir = "./run_dir/" + run_id + "/";         
+        cql3d_run_dir = "./run_dir/" + run_id + "/";
+    case 8
+        run_id = "WHAM_NBI_kunal";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";          
 end
 
 %% Get data:

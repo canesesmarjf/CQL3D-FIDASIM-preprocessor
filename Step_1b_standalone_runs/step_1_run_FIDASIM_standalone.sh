@@ -8,7 +8,7 @@
 # ============================================================
 
 # Define run ID:
-#RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
+RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
 RUN_ID="WHAM_NBI_kunal"
 
 # Number of threads:
@@ -16,8 +16,8 @@ NUM_THREADS=20
 
 # FIDASIM processes to run in the workflow:
 FIDASIM_RUN_PREPROCESSOR=1
-FIDASIM_RUN_EXEC=1
-FIDASIM_RUN_SRCS_TO_TXT=1
+FIDASIM_RUN_EXEC=0
+FIDASIM_RUN_SRCS_TO_TXT=0
 
 # If running preprocessor, enable plotting output:
 PREPROCESSOR_PLOT=1

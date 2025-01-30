@@ -41,7 +41,7 @@
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
   n_nbi = 500e3
-  n_birth = 1000e3
+  n_birth = 500e3
   n_dcx = 50e3
   n_halo = 50e3
 /

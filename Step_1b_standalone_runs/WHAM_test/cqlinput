@@ -434,9 +434,9 @@
  src_nbi_e='enabled' !Add source to e_general, to match NBI sources
  read_birth_pts="enabled"
  read_birth_data_type="fidasim"
- nbirth_pts=240000
+ nbirth_pts=150000
  nbirth_pts_files=1
- birth_pts_files(1)="ion_source_points_FIDASIM.dat"
+ birth_pts_files(1)="Ion_birth_points_FIDASIM.dat"
  &end
 end
 end

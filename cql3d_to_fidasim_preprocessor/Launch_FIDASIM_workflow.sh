@@ -144,17 +144,17 @@ if [[ "$FIDASIM_RUN_EXEC" == "1" ]]; then
 fi
 
 # ===================================================================
-# Step 3: Save sources and sinks into text file (.dat):
+# Step 3: Save births and sinks into text file (.dat):
 # ============================================================
 # Using the files outputted by FIDASIM in STEP 2. we can now write the text files needed for CQL3DM:
 if [[ "$FIDASIM_RUN_SRCS_TO_TXT" == "1" ]]; then
   echo ""
-  echo "Step 2: Running C_save_sources_and_sinks.py"
+  echo "Step 2: Running C_save_sources.py"
   echo "--------------------------------------------"
-  STEP_3="python $PREPROCESSOR_DIR/$PYTHON_PACKAGE/C_save_sources_and_sinks.py"
+  STEP_3="python $PREPROCESSOR_DIR/$PYTHON_PACKAGE/C_save_sources.py"
   $STEP_3 --fida-run-dir $FIDASIM_RUN_DIR --cql-run-dir $CQL3D_RUN_DIR
   if [ $? -ne 0 ]; then
-      echo "Error: C_save_sources_and_sinks.py failed"
+      echo "Error: C_save_sources.py failed"
       exit 1
   fi
 fi

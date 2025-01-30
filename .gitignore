@@ -20,6 +20,10 @@ run_dir/**/*.pdf
 Step_1a_coupled_runs/**/*.pdf
 Step_1b_standalone_runs/**/*.pdf
 
+# Ignore all .zip files in results:
+Step_1a_coupled_runs/**/*.zip
+Step_1b_standalone_runs/**/*.zip
+
 # ignore from cql3d:
 run_dir/**/distrfunc
 Step_1a_coupled_runs/**/distrfunc

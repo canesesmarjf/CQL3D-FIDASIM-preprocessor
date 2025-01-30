@@ -32,8 +32,8 @@ if len(sys.argv) == 1:
     # cql3d_run_dir   = "./cql3d_files/" + run_id
 
     run_id = "WHAM_high_ne_nonthermal_multistep_cx"
-    fidasim_run_dir = "./run_dir/" + run_id
-    cql3d_run_dir   = "./run_dir/" + run_id
+    fidasim_run_dir = "../Step_1b_standalone_runs/" + run_id
+    cql3d_run_dir   = "../Step_1b_standalone_runs/" + run_id
 
     args.fida_run_dir = fidasim_run_dir
     args.cql_run_dir = cql3d_run_dir

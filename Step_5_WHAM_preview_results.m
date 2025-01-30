@@ -14,6 +14,9 @@ plot_fields = 0;
 
 scenario = 5.2;
 scenario = 8;
+scenario = 5.3;
+scenario = 10;
+scenario = 11;
 
 switch scenario
     case 1
@@ -30,20 +33,20 @@ switch scenario
         cql3d_run_dir = "./cql3d_files/" + run_id + "/";
     case 5
         run_id = "WHAM_low_ne_nonthermal";
-        fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
-        cql3d_run_dir = "./cql3d_files/" + run_id + "/";
+        fidasim_run_dir  = "./archived/fidasim_files/" + run_id + "/";
+        cql3d_run_dir = "./archived/cql3d_files/" + run_id + "/";
     case 5.1
         run_id = "WHAM_high_ne_nonthermal";
         fidasim_run_dir  = "./run_dir/" + run_id + "/";
         cql3d_run_dir = "./run_dir/" + run_id + "/";        
     case 5.2
         run_id = "WHAM_high_ne_nonthermal_multistep_cx";
-        fidasim_run_dir  = "./run_dir/" + run_id + "/";
-        cql3d_run_dir = "./run_dir/" + run_id + "/"; 
+        fidasim_run_dir  = "./archived/run_dir/" + run_id + "/";
+        cql3d_run_dir = "./archived/run_dir/" + run_id + "/"; 
     case 5.3
         run_id = "WHAM_high_ne_thermal_multistep_cx";
-        fidasim_run_dir  = "./run_dir/" + run_id + "/";
-        cql3d_run_dir = "./run_dir/" + run_id + "/";    
+        fidasim_run_dir  = "./archived/run_dir/" + run_id + "/";
+        cql3d_run_dir = "./archived/run_dir/" + run_id + "/";    
     case 6
         run_id = "WHAM_low_ne_thermal";
         fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
@@ -51,15 +54,27 @@ switch scenario
     case 7
         run_id = "WHAM_wall_flux_cold_plasma";
         fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
-        cql3d_run_dir = "./cql3d_files/" + run_id + "/";  
+        cql3d_run_dir = "./cql3d  _files/" + run_id + "/";  
     case 7.1
         run_id = "WHAM_wall_flux_cold_plasma_multistep_cx";
-        fidasim_run_dir  = "./run_dir/" + run_id + "/";
-        cql3d_run_dir = "./run_dir/" + run_id + "/";
+        fidasim_run_dir  = "./archived/run_dir/" + run_id + "/";
+        cql3d_run_dir = "./archived/run_dir/" + run_id + "/";
     case 8
         run_id = "WHAM_NBI_kunal";
         fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
-        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";          
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";   
+    case 9
+        run_id = "WHAM_Bob_IAEA";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";                  
+    case 10
+        run_id = "WHAM_Bob_IAEA_edge_neutrals";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";                  
+    case 11
+        run_id = "WHAM_high_ne_nonthermal_multistep_cx";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";                  
 end
 
 %% Get data:
@@ -680,6 +695,118 @@ legend(hr,legend_text)
 set(gca,'FontSize',14)
 clear hr
 
+%% CARTESIAN: Plot 0th and 1st gen birth profiles
+
+grid_x = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/x_grid');
+grid_y = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/y_grid');
+grid_z = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/z_grid');
+
+x_vec = permute(grid_x(:,1,:),[1,3,2]);
+y_vec = permute(grid_z(:,1,:),[1,3,2]);
+
+in = mean(birth.dens_full(:,17:23,:),2);
+data_0 = permute(in,[1,3,2]); % [cm^-3/s]
+
+in = mean(birth_1.dens_dcx(:,17:23,:),2);
+data_1 = permute(in,[1,3,2]);  % [cm^-3/s]
+
+figure('color','w')
+lcfs_color = 'r';
+latex_fontsize = 17;
+
+subplot(1,2,1)
+hold on
+contourf(+plasma.r2d,plasma.z2d,(plasma.dene),20,'LineStyle','none')
+contourf(-plasma.r2d,plasma.z2d,(plasma.dene),20,'LineStyle','none')
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+% set(gca,'PlotBoxAspectRatio',[1,2,1])
+colorbar
+xlim([-1,1]*20)
+ylim([-1,1]*100)
+set(gca,'FontSize',12,'FontName','Helvetica')
+title("Electron density [cm$^{-3}$]",Interpreter="latex",FontSize=latex_fontsize)
+xlabel('R [cm]')
+zlabel('Z [cm]')
+% colormap(flipud(hot))
+
+figure('color','w')
+lcfs_color = 'r';
+
+subplot(1,2,1)
+
+plot_log10 = 0;
+if plot_log10
+    z_vec = log10(data_0);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv]
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "(log10)"
+else
+    z_vec = (data_0);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv];
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "";
+end
+
+box on
+hold on
+levels = 20;
+line_style = 'none';
+contourf(x_vec,y_vec,z_vec,levels,'linestyle',line_style)
+colorbar
+caxis(crange);
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+xlim([-1,1]*20)
+ylim([-1,1]*100)
+set(gca,'FontSize',12,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=17)
+xlabel("x [cm]",'Interpreter','latex',FontSize=17)
+title(["0$^{th}$ gen ion birth rate (NBI)", ...
+    scale_txt + " [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=16)
+% colormap(flipud(hot))
+
+subplot(1,2,2)
+
+plot_log10 = 0;
+if plot_log10
+    z_vec = log10(data_1);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv]
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "(log10)"
+else
+    z_vec = (data_1);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv];
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "";
+end
+
+box on
+hold on
+levels = 20;
+line_style = 'none';
+contourf(x_vec,y_vec, z_vec,levels,'linestyle',line_style)
+colorbar
+caxis(crange);
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+xlim([-1,1]*20)
+ylim([-1,1]*100)
+set(gca,'FontSize',12,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=18)
+xlabel("x [cm]",'Interpreter','latex',FontSize=18)
+title(["1$^{st}$ gen ion birth rate (DCX)", ...
+    "(log10) [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=16)
+% colormap(flipud(hot))
+
 %% Convert birth profiles to cylindrical:
 [X_grid, Y_grid, Z_grid] = meshgrid(birth.y, birth.z, birth.x);
 
@@ -875,10 +1002,38 @@ grid_z = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/z_grid');
 denn_full = permute(sum(denn_full_n,1),[2,3,4,1]);
 denn_half = permute(sum(denn_half_n,1),[2,3,4,1]);
 denn_third = permute(sum(denn_third_n,1),[2,3,4,1]);
+denn_nbi = denn_full + denn_half + denn_third;
 
 try
     denn_dcx = permute(sum(denn_dcx_n,1),[2,3,4,1]);
 end
+
+figure('color','w');
+box on
+lcfs_color = 'r';
+latex_fontsize = 17;
+levels = 30;
+linestyle = 'none';
+x_vec = permute(grid_x(:,1,:),[1,3,2]);
+y_vec = permute(grid_z(:,1,:),[1,3,2]);
+z_mat = permute(mean(denn_dcx(:,17:23,:) + denn_nbi(:,17:23,:),2),[1,3,2]);
+
+subplot(1,2,1)
+hold on
+contourf(x_vec,y_vec,log10(z_mat),30,'LineStyle',linestyle)
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+colorbar
+xlim([-1,1]*20)
+ylim([-1,1]*100)
+set(gca,'FontSize',12,'FontName','Helvetica')
+% caxis([2,17]);
+ylabel("z [cm]",'Interpreter','latex',FontSize=17)
+xlabel("x [cm]",'Interpreter','latex',FontSize=17)
+title(["neutral density (NBI + Halo)", ...
+    "(log10) [cm$^{-3}$]"],'Interpreter','latex',FontSize=16)
+
+
 
 denn_full_XZ = permute(sum(denn_full,2),[1,3,2]);
 denn_half_XZ = permute(sum(denn_half,2),[1,3,2]);

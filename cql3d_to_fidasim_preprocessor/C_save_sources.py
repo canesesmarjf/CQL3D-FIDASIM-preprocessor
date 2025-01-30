@@ -11,6 +11,8 @@ import sys
 import argparse
 import f90nml
 import warnings
+import socket
+from datetime import datetime
 
 # ======================================================================================================================
 # Get command line arguments:
@@ -61,6 +63,8 @@ def extract_hdf5_source_data(file_path):
         data['energy'] = file['energy'][:] * 1e3  # [eV]
         if data['type'] == 'sink':
             data['weight'] = -file['weight'][:]  # [ions/s]
+            data['denf4d'] = file['denf4d'][:] # [ions/cm^3 (s/cm)^3]
+            data['denf4d_per_marker'] = file['denf4d_per_marker'][:] # [ions/cm^3 (s/cm)^3]
         else:
             data['weight'] = +file['weight'][:]  # [ions/s]
         data['ri'] = file['ri'][:]  # [cm]
@@ -163,7 +167,7 @@ def process_particle_data(data_list):
     Processes particle data from a list of dictionaries to compute positions and velocities.
 
     Parameters:
-        data_list (list): List of dictionaries containing 'ri', 'vi', and 'weight' keys.
+        data_list (list): List of dictionaries containing 'ri', 'vi', 'weight', and optionally 'denf4d', 'denf4d_per_marker' keys.
 
     Returns:
         tuple: Arrays (X, Y, Z, vx, vy, vz, weights) with particle positions, velocities, weight and energy.
@@ -173,6 +177,8 @@ def process_particle_data(data_list):
     vx, vy, vz = [], [], []
     weight = []
     energy = []
+    denf4d = []
+    denf4d_per_marker = []
 
     # Iterate over each dictionary in the data list
     for data in data_list:
@@ -205,6 +211,12 @@ def process_particle_data(data_list):
         weight.extend(data['weight'])
         energy.extend(data['energy'])
 
+        # Check for optional keys 'denf4d' and 'denf4d_per_marker'
+        if 'denf4d' in data:
+            denf4d.extend(data['denf4d'])
+        if 'denf4d_per_marker' in data:
+            denf4d_per_marker.extend(data['denf4d_per_marker'])
+
     # Convert lists to numpy arrays
     X = np.array(X)
     Y = np.array(Y)
@@ -215,7 +227,11 @@ def process_particle_data(data_list):
     weight = np.array(weight)
     energy = np.array(energy)
 
-    return X, Y, Z, vx, vy, vz, weight, energy
+    # Handle optional arrays for denf4d and denf4d_per_marker
+    denf4d = np.array(denf4d) if denf4d else np.zeros_like(energy)
+    denf4d_per_marker = np.array(denf4d_per_marker) if denf4d_per_marker else np.zeros_like(energy)
+
+    return X, Y, Z, vx, vy, vz, weight, energy, denf4d, denf4d_per_marker
 
 def process_all_particles(birth_data, sink_data):
     """
@@ -229,10 +245,10 @@ def process_all_particles(birth_data, sink_data):
         tuple: Arrays (X, Y, Z, vx, vy, vz, weights) with combined particle positions, velocities, and weights.
     """
     # Process birth data
-    birth_X, birth_Y, birth_Z, birth_vx, birth_vy, birth_vz, birth_weight, birth_energy = process_particle_data(birth_data)
+    birth_X, birth_Y, birth_Z, birth_vx, birth_vy, birth_vz, birth_weight, birth_energy, birth_denf4d, birth_denf4d_per_marker = process_particle_data(birth_data)
 
     # Process sink data
-    sink_X, sink_Y, sink_Z, sink_vx, sink_vy, sink_vz, sink_weight, sink_energy = process_particle_data(sink_data)
+    sink_X, sink_Y, sink_Z, sink_vx, sink_vy, sink_vz, sink_weight, sink_energy, sink_denf4d, sink_denf4d_per_marker = process_particle_data(sink_data)
 
     # Combine all data
     X = np.concatenate([birth_X, sink_X])
@@ -243,8 +259,10 @@ def process_all_particles(birth_data, sink_data):
     vz = np.concatenate([birth_vz, sink_vz])
     weight = np.concatenate([birth_weight, sink_weight])
     energy = np.concatenate([birth_energy, sink_energy])
+    denf4d = np.concatenate([birth_denf4d, sink_denf4d])
+    denf4d_per_marker = np.concatenate([birth_denf4d_per_marker, sink_denf4d_per_marker])
 
-    return X, Y, Z, vx, vy, vz, weight, energy
+    return X, Y, Z, vx, vy, vz, weight, energy, denf4d, denf4d_per_marker
 
 def main():
     # Extract data:
@@ -261,7 +279,7 @@ def main():
 
     # Extract and combine all particle data:
     # ======================================================================================================================
-    X, Y, Z, vx, vy, vz, weight, energy = process_all_particles(birth_data, sink_data)
+    X, Y, Z, vx, vy, vz, weight, energy, denf4d, denf4d_per_marker = process_all_particles(birth_data, sink_data)
 
     # Get net flux, power and number of particles:
     net_flux = np.sum(weight)
@@ -345,42 +363,78 @@ def main():
     print(f"Total flux: {birth_flux[0]:.6e} [p/s]")
     print("=================================================")
 
+    # Get the hostname and current date:
+    # ======================================================================================================================
+    hostname = socket.gethostname()
+    current_date = datetime.now().strftime("%d-%b-%Y %H:%M:%S")  # Format: DD-MMM-YYYY HH:MM:SS
+
     # Saving file with birth points:
     # ======================================================================================================================
-    header = \
-        f"""host=sunfire08.pppl.gov                     date=09-Oct-2012 08:54:46
-    "AC" FILE 128742N04.DATA9  TIME =  3.5229E-01 +/-  3.0000E-03 sec.
-    tokamak: NSTX NLSYM=F #= 1 A= 2.0 Z= 1.0 NEUTRAL BEAM/DEPOSITION
-    time data gathering from  3.537500E-01 to  3.557500E-01 sec.
-    deposition function at guiding center.
-    NEUTRAL BEAM #  = ALL AVAILABLE
-    ENERGY FRACTION =  ALL
-    POWER  INJECTED(this data sample) =  {nbi_inj_power:.6e} watts
-    POWER DEPOSITED(this data sample) =  {birth_pwr[0]:.6e} watts         (0th GENERATION)
-    POWER FOR ALL BEAMS =  {nbi_inj_power:.6e}  watts, not averaged over time
-    beam toroidal angle XBZETA, deg.
-    BEAM#  1-855.0000E-01
-    BEAM#  2-820.0000E-01
-    BEAM#  3-785.0000E-01
-    beam nominal duct angle, deg.
-    BEAM#  1 175.5000E+00
-    BEAM#  2 172.0000E+00
-    BEAM#  3 168.5000E+00
-    N=  {net_num_parts:6}  #deposited/s= {np.sum(birth_flux):.6e}  #removed/s= {np.sum(sink_flux):.6e}  (NET quantities)
-    N_shine_through =   12432
-    Akima Hermite spline interpolation has been used
-    6(1x,1pe13.6)  get_fdep_beam
-    x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)     weight(ions/s)
-    <start-of-data>"""
+#     header =\
+#     f"""host=sunfire08.pppl.gov                     date=09-Oct-2012 08:54:46
+# "AC" FILE 128742N04.DATA9  TIME =  3.5229E-01 +/-  3.0000E-03 sec.
+# tokamak: NSTX NLSYM=F #= 1 A= 2.0 Z= 1.0 NEUTRAL BEAM/DEPOSITION
+# time data gathering from  3.537500E-01 to  3.557500E-01 sec.
+# deposition function at guiding center.
+# NEUTRAL BEAM #  = ALL AVAILABLE
+# ENERGY FRACTION =  ALL
+# POWER  INJECTED(this data sample) =  {nbi_inj_power:.6e} watts
+# POWER DEPOSITED(this data sample) =  {birth_pwr[0]:.6e} watts         (0th GENERATION)
+# POWER FOR ALL BEAMS =  {nbi_inj_power:.6e}  watts, not averaged over time
+# beam toroidal angle XBZETA, deg.
+# BEAM#  1-855.0000E-01
+# BEAM#  2-820.0000E-01
+# BEAM#  3-785.0000E-01
+# beam nominal duct angle, deg.
+# BEAM#  1 175.5000E+00
+# BEAM#  2 172.0000E+00
+# BEAM#  3 168.5000E+00
+# N=  {net_num_parts:6}  #deposited/s= {np.sum(birth_flux):.6e}  #removed/s= {np.sum(sink_flux):.6e}  (NET quantities)
+# N_shine_through =   12432
+# Akima Hermite spline interpolation has been used
+# 6(1x,1pe13.6)  get_fdep_beam
+# x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)     weight(ions/s)
+# <start-of-data>"""
+
+    # Calculate padding to ensure "date=" starts at column 45
+    padding_length = 44 - len(f"host={hostname}")
+    padding = " " * max(padding_length, 0)
+
+    header_part_1 =\
+    f"""host={hostname:<30}date={current_date:<20}
+{"GEN":<5} {"TYPE":<10} {"FLUX [p/s]":<20} {"PWR [W]":<20} {"num_parts":<10}
+{"-" * 80}
+{0:<5} {"BIRTH":<10} {birth_flux[0]:<20.6e} {birth_pwr[0]:<20.6e} {int(n_birth[0]):<10}
+{1:<5} {"BIRTH":<10} {birth_flux[1]:<20.6e} {birth_pwr[1]:<20.6e} {int(n_birth[1]):<10}
+{0:<5} {"SINK ":<10} {sink_flux[0]:<20.6e} {sink_pwr[0]:<20.6e} {int(n_sink[0]):<10}
+{1:<5} {"SINK ":<10} {sink_flux[1]:<20.6e} {sink_pwr[1]:<20.6e} {int(n_sink[1]):<10}
+"""
+
+    header_part_2 =\
+    f"""POWER  INJECTED(this data sample) =  {nbi_inj_power:.6e} watts
+POWER DEPOSITED(this data sample) =  {birth_pwr[0]:.6e} watts         (0th GENERATION)
+POWER FOR ALL BEAMS =  {nbi_inj_power:.6e}  watts, not averaged over time
+"""
+
+    header_part_3 = "*\n" * 8
+
+    header_part_4 = \
+        f"""N=  {net_num_parts:6}  #deposited/s= {np.sum(birth_flux):.6e}  #removed/s= {np.sum(sink_flux):.6e}  (NET quantities)
+N_shine_through =   12432 (Incorrect value)
+*
+*
+x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)     weight(ions/s)     denf4d(ion/cm^3(s/cm)^3)     denf4d_per_marker(ion/cm^3(s/cm)^3)
+<start-of-data>"""
+
+    # Concatenate the parts to construct the full header:
+    header = header_part_1 + header_part_2 + header_part_3 + header_part_4
 
     # Combine the arrays into a single 2D array:
     # ======================================================================================================================
-    data = np.column_stack((X, Y, Z, vx, vy, vz, weight))
+    data = np.column_stack((X, Y, Z, vx, vy, vz, weight, denf4d, denf4d_per_marker))
 
     # Define the precision (number of decimal places)
-    precision = 6  # Adjust this to your desired precision
-
-    # Consider E format as well:
+    precision = 4#6  # Adjust this to your desired precision
 
     # Include scientific number formatting in the f-string
     fmt = f'% .{precision}e'

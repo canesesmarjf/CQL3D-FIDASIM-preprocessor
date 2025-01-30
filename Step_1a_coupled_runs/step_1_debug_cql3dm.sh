@@ -21,10 +21,9 @@ CLI_TO_TXT=0
 # Enable plotting output from preprocessor:
 PREPROCESSOR_PLOT=1
 
-# Debugging executable name:
+# Debugging parameters:
+DEBUG_CQL3D=1
 EXECUTABLE=xcql3dm_mpi.gfortran64_DEBUG
-
-# Define the directory where the Forge binaries are located
 FORGE_DIR=/home/jfcm/linaro/forge/24.0.2/bin
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -34,6 +33,5 @@ FORGE_DIR=/home/jfcm/linaro/forge/24.0.2/bin
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 # Launch CQL3D:
-DEBUG_CQL3D=0
 python_package="cql3d_to_fidasim_preprocessor/"
 source $PREPROCESSOR_DIR/$python_package"Launch_CQL3D.sh"

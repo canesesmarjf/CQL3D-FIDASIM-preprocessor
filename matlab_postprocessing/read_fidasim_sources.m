@@ -85,6 +85,13 @@ source.vi = h5read(source_file_name,'/vi'); % vr-vz-vphi cyclindrical coords [cm
 source.weight = h5read(source_file_name,'/weight'); % [ions per sec]
 source.energy = h5read(source_file_name,'/energy'); % [keV per ion]:
 
+if strcmpi(source_type,"sink") | strcmpi(source_type,"sink_1")
+    try 
+        source.denf4d =  h5read(source_file_name,'/denf4d'); % [ion/cm^3 (s/cm)^3]:
+        source.denf4d_per_marker =  h5read(source_file_name,'/denf4d_per_marker'); % [ion/cm^3 (s/cm)^3]:
+    end
+end
+
 % Grid data:
 % x,y,z coordinates in beam grid coordinates:
 source.x = h5read(source_file_name,'/grid/x'); % size [nx]

@@ -45,13 +45,13 @@ else
     cd $CQL3D_RUN_DIR
     if [[ "$CLI_TO_TXT" == "1" ]]; then
         echo "CLI_TO_TXT is set to 1. Recording CLI output to text file log.txt ..."
-        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64 > log.txt 2>&1 &
+        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/$EXECUTABLE > log.txt 2>&1 &
     elif [[ "$CLI_TO_TXT" == "0" ]]; then
         echo "CLI_TO_TXT is set to 0. NOT Recording CLI output ..."
-        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/$EXECUTABLE
     elif [[ -z "$CLI_TO_TXT" ]]; then
         echo "CLI_TO_TXT is empty. Do not record CLI output to text file ..."
-        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/xcql3dm_mpi.gfortran64
+        time $MPI_CMD -n $NUM_PROCS $CQL3DM_DIR/$EXECUTABLE
     else
         echo "CLI_TO_TXT has an unexpected value: $CLI_TO_TXT"
         echo "CQL3D run has been terminated ..."

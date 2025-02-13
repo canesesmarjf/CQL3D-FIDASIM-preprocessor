@@ -18,7 +18,7 @@ RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
 NUM_THREADS=20
 
 # FIDASIM processes to run in the workflow:
-FIDASIM_RUN_PREPROCESSOR=1
+FIDASIM_RUN_PREPROCESSOR=0
 FIDASIM_RUN_EXEC=1
 FIDASIM_RUN_SRCS_TO_TXT=1
 

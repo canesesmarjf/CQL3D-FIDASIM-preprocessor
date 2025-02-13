@@ -8,8 +8,7 @@
 
 # Define run directory:
 # RUN_ID="WHAM_no_f4d"
-# RUN_ID="WHAM_test"
-RUN_ID='wham_source_test'
+RUN_ID="WHAM_test"
 
 # Number of processors:
 NUM_PROCS=15 # Number of MPI processes for CQL3D

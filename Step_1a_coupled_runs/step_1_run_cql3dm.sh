@@ -20,6 +20,10 @@ CLI_TO_TXT=0
 # Enable plotting output from preprocessor:
 PREPROCESSOR_PLOT=1
 
+# CQL3D executable:
+#EXECUTABLE=xcql3d_mpi.perl
+EXECUTABLE=xcql3dm_mpi.gfortran64
+
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ==================== END USER INPUTS: =====================

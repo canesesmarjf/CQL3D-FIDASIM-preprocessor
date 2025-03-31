@@ -17,12 +17,14 @@ scenario = 8;
 scenario = 5.3;
 scenario = 10;
 scenario = 11;
+scenario = 1;
 
 switch scenario
     case 1
-        run_id = "WHAM_example_1";
-        fidasim_run_dir  = "./fidasim_files/" + run_id + "/";
-        cql3d_run_dir = "./cql3d_files/" + run_id + "/";
+        run_id = "WHAM_test";
+        out_dir = "output_10/";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + out_dir;
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + out_dir;                  
     case 2
 
     case 3
@@ -214,6 +216,19 @@ if exist(birth_file)==2
     disp("(FIDASIM) Total NBI power absorbed: " + num2str(Pabs*1e-3,4) + " [kW]")
     disp("(FIDASIM) " + num2str(shinethrough*100,4) + "% shine-through")
     
+    % Compute power distributed in energy bins
+    energy_bands = unique(birth.energy);
+    if numel(energy_bands) <= 3
+        for ee = 1:3
+        rng = find(birth.energy == energy_bands(ee));
+        power_bands(ee) = sum(birth.energy(rng).*birth.weight(rng)*1e3*e_c);
+        end
+        disp(" ")
+        disp("(FIDASIM) full energy NBI power absorbed: " + num2str(power_bands(3)*1e-3,4) + " [kW]")
+        disp("(FIDASIM) half energy NBI power absorbed: " + num2str(power_bands(2)*1e-3,4) + " [kW]")
+        disp("(FIDASIM) third energy NBI power absorbed: " + num2str(power_bands(1)*1e-3,4) + " [kW]")
+    end
+
     % CQL3D NBI power:
     if exist(cql_mnemonic_file)==2
         
@@ -229,6 +244,7 @@ if exist(birth_file)==2
         disp("(CQL3D-M) " + num2str(shinethrough*100,4) + "% shine-through")
 
     end
+
 end
 
 %% Plot plasma:
@@ -362,7 +378,9 @@ if exist(birth_file_1)==2
     hfig = figure('color','w');
     box on
     hold on
+    try
     surf(birth_1_vpar, birth_1_vper, birth_1_f','LineStyle','none');
+    end
     surf(birth_vpar, birth_vper, birth_f','LineStyle','none');
 
     % Plot beam energies:
@@ -707,8 +725,11 @@ y_vec = permute(grid_z(:,1,:),[1,3,2]);
 in = mean(birth.dens_full(:,17:23,:),2);
 data_0 = permute(in,[1,3,2]); % [cm^-3/s]
 
+try
 in = mean(birth_1.dens_dcx(:,17:23,:),2);
 data_1 = permute(in,[1,3,2]);  % [cm^-3/s]
+catch
+end
 
 figure('color','w')
 lcfs_color = 'r';
@@ -735,7 +756,7 @@ lcfs_color = 'r';
 
 subplot(1,2,1)
 
-plot_log10 = 0;
+plot_log10 = 1;
 if plot_log10
     z_vec = log10(data_0);
     min_zv = min(z_vec(:));
@@ -772,6 +793,7 @@ title(["0$^{th}$ gen ion birth rate (NBI)", ...
 
 subplot(1,2,2)
 
+try
 plot_log10 = 0;
 if plot_log10
     z_vec = log10(data_1);
@@ -806,7 +828,8 @@ xlabel("x [cm]",'Interpreter','latex',FontSize=18)
 title(["1$^{st}$ gen ion birth rate (DCX)", ...
     "(log10) [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=16)
 % colormap(flipud(hot))
-
+catch
+end
 %% Convert birth profiles to cylindrical:
 [X_grid, Y_grid, Z_grid] = meshgrid(birth.y, birth.z, birth.x);
 
@@ -845,6 +868,7 @@ set(gca,'FontSize',12)
 
 subplot(1,2,2)
 
+try
 % Interpolate data to cylindrical grid
 data = permute(birth_1.dens_dcx,[2 3 1]);
 data_cyl = interp3(X_grid, Y_grid, Z_grid, data, ...
@@ -874,6 +898,8 @@ data_cyl = interp3(X_grid, Y_grid, Z_grid, data, ...
                    'linear', 0);
 hf = gcf;
 set(hf.Children,'FontSize',12)
+catch
+end
 
 figure('color','w');
 subplot(1,2,1)
@@ -941,6 +967,7 @@ xlim([-1,1]*20)
 ylim([-1,1]*20)
 title('0th gen edge neutral ION BIRTH points U-V plane')
 
+try
 % Sink profile; YZ
 figure('color','w'); 
 box on
@@ -954,7 +981,10 @@ colorbar
 xlim([-1,1]*20)
 ylim([-1,1]*20)
 title('0th gen edge neutral ION SINK points U-V plane')
+catch
+end
 
+try
 % Birth_1 profile; YZ
 figure('color','w'); 
 hold on
@@ -968,6 +998,8 @@ colorbar
 xlim([-1,1]*20)
 ylim([-1,1]*20)
 title('1st gen DCX ION BIRTH points U-V plane')
+catch
+end
 
 %% Neutral densities:
 

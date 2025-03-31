@@ -8,11 +8,12 @@
 
 # Define run directory:
 # RUN_ID="WHAM_no_f4d"
-RUN_ID="WHAM_test"
+#RUN_ID="WHAM_test"
+RUN_ID="WHAM_100keV"
 
 # Number of processors:
-NUM_PROCS=15 # Number of MPI processes for CQL3D
-NUM_THREADS=15 # Number of threads for FIDASIM
+NUM_PROCS=13 # Number of MPI processes for CQL3D
+NUM_THREADS=8 # Number of threads for FIDASIM
 
 # Record terminal output to text file:
 CLI_TO_TXT=0

@@ -9,7 +9,7 @@
 &cql3d_input_files
   eqdsk_type = 1 !(1) mirror or (2) toroidal
   plasma_from_cqlinput = 0
-  include_f4d = 0
+  include_f4d = 1
 /
 
 &rz_interpolation_grid
@@ -31,7 +31,7 @@
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 0
+  enable_nonthermal_calc = 1
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0
@@ -40,8 +40,8 @@
 
 &monte_carlo_particles
   ! Define number of Monte-Carlo particles:
-  n_nbi = 200e3
-  n_birth = 200e3
+  n_nbi = 100e3
+  n_birth = 100e3
   n_dcx = 500e3
   n_halo = 500e3
 /

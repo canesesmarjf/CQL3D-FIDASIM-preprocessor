@@ -404,8 +404,7 @@
  bvfoc(1)=173.137
  bvofset(1)=0.0,
  bwidth(1)=10.,
-! ebkev(1)=25.0000
- ebkev(1)=100.0000
+ ebkev(1)=25.0000
 ! fbcur(1,1)=.74,   ! slight increase of full, for 65 keV,
 ! fbcur(2,1)=.17,   ! interpolating from Deyong
 ! fbcur(3,1)=.09,   !Total is 1.0

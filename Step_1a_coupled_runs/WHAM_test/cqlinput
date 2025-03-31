@@ -413,7 +413,8 @@
  fbcur(2,1)=.1,    !
  fbcur(3,1)=.05,
  frmod='enabled',   !------------------
- frsink_cx='enabled' !---[2023-03-07]
+ !frsink_cx='enabled' !---[2023-03-07]
+ frsink_cx='fidasim' !---[2025-02-14]
  r_cx=0.7 != rate_cx/(rate_cx + rate_impact) ![2023-03-11]
  frplt='enabled',
  ibcur=1     iborb=0,
@@ -435,7 +436,7 @@
  src_nbi_e='enabled' !Add source to e_general, to match NBI sources
  read_birth_pts="enabled"
  read_birth_data_type="fidasim"
- nbirth_pts=1800000
+ nbirth_pts=900000
  nbirth_pts_files=1
  birth_pts_files(1)="ion_source_points_FIDASIM.dat"
  &end

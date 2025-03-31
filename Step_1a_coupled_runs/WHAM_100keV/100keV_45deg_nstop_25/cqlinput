@@ -172,12 +172,14 @@
  noffel=10000,
  nonel=10000,
  nonvphi=2 !To update FREYA deposition at each t !By def., vphic==0.(iprovphi="disabled")
- nplot=   6,10,50,70,100,200,300,400,1200
- nplt3d=1,6,10,50,70,100,200,300,400,1200
+! nplot=   6,10,50,70,100,200,300,400,1200
+ nplot=2,4,6,10,13,16,20,25,30
+! nplt3d=1,6,10,50,70,100,200,300,400,1200
+ nplt3d=2,4,6,10,13,16,20,25,30
  npwr=2.,2.,2.,2.,
  nrskip=0,
  nrstrt=1,
- nstop=400 !200 !1000,
+ nstop=25,
  numby=30,
  nv=9,
  partner='disabled',
@@ -189,7 +191,7 @@
  pltfvs='enabled',
  pltinput='enabled',
  pltlim='u/c'
- pltlimm(1)=0.01,0.4 !Each k! D:0.02<->376keV !Same units as pltlim
+ pltlimm(1)=0.015,0.4 !Each k! D:0.02<->376keV !Same units as pltlim
  pltmag=1.,
  pltpowe='last',
 ! pltprpp='enabled', !  plot reduced distribution f-parallel
@@ -404,7 +406,6 @@
  bvfoc(1)=173.137
  bvofset(1)=0.0,
  bwidth(1)=10.,
-! ebkev(1)=25.0000
  ebkev(1)=100.0000
 ! fbcur(1,1)=.74,   ! slight increase of full, for 65 keV,
 ! fbcur(2,1)=.17,   ! interpolating from Deyong
@@ -414,7 +415,7 @@
  fbcur(3,1)=.05,
  frmod='enabled',   !------------------
  frsink_cx='enabled' !---[2023-03-07]
- r_cx=0.7 != rate_cx/(rate_cx + rate_impact) ![2023-03-11]
+ r_cx=0.1 != rate_cx/(rate_cx + rate_impact) ![2023-03-11]
  frplt='enabled',
  ibcur=1     iborb=0,
  iexcit=5,
@@ -437,7 +438,7 @@
  read_birth_data_type="fidasim"
  nbirth_pts=150000
  nbirth_pts_files=1
- birth_pts_files(1)="Ion_birth_points_FIDASIM.dat"
+ birth_pts_files(1)="ion_source_points_FIDASIM.dat"
  &end
 end
 end

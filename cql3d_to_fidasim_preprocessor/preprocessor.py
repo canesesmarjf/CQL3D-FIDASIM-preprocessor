@@ -20,11 +20,15 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 plt.ion()  # Turn on interactive mode (only affects GUI-based backends)
+
 # Define physical constants:
+atomic_mass_CGI = 1.660538921E-24 # [g]
 mass_proton_CGI = 1.6726E-24 # CGI units [g]
 charge_electron_SI = 1.60217663E-19  # SI units [C]
+atomic_mass_SI = 1.660538921E-27 # [kg]
 mass_proton_SI = 1.67262192E-27  # SI units [Kg]
 mass_electron_SI = 9.1093837E-31  # SI units [Kg]
+clight_SI = 299792458 # [m/s]
 
 def set_fidasim_dir(path):
     """Set the FIDASIM directory and update the system path."""
@@ -513,7 +517,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
     num_E = 2
     num_P = 2
     if include_f4d:
-        num_E = 2*read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
+        num_E = read_ncdf(config['f4d_ion_file_name'])['f4dv'].shape[0]
         num_P = read_ncdf(config['f4d_ion_file_name'])['f4dt'].shape[0]
     fbm_grid = np.zeros((num_R, num_Z, num_E, num_P))
 
@@ -592,13 +596,28 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         # Get corresponding normalizing  electron energy:
         enorm = f4d_nc['enorm'] # [keV]
 
-        # Get minimum and maximum ion energy associated with input nc file:
-        mass_AMU = np.array([src_nc['fmass'][0] / (mass_proton_SI * 1e3)])
-        mass = mass_AMU[0] * mass_proton_SI  # [kg]
+        # Get ion mass:
+        mass_AMU = np.array([src_nc['fmass'][0] / (atomic_mass_SI * 1e3)])
+        mass = mass_AMU[0] * atomic_mass_SI  # [kg]
+
+        # Get min and max velocities of grid:
         v_max = v_nc.max()*vnorm_SI  # [m/s]
-        e_max = 0.5*mass*(v_max**2)/charge_electron_SI # [eV]
         v_min = v_nc.min()*vnorm_SI  # [m/s]
-        e_min = 0.5*mass*(v_min**2)/charge_electron_SI  # [eV]
+
+        # Relationship between enorm and vnorm:
+        # E(V) = (g(V) - 1)*E0
+        # g(V) = sqrt( 1 + (V/c)^2 )
+        # V(E) = c*sqrt( (1 + (E/E0))^2 - 1)
+        g = lambda v_SI: np.sqrt( 1 + (v_SI/clight_SI)**2 )
+        gmax = g(v_max)
+        gmin = g(v_min)
+
+        # Ion rest mass:
+        E0 = (mass/charge_electron_SI)*clight_SI**2 # [eV]
+
+        # Get minimum and maximum ion energy associated with input nc file:
+        e_max = (gmax - 1) * E0
+        e_min = (gmin - 1) * E0
 
         # Get the minimum and maximum pitch angle theta:
         t_max = t_nc.max()
@@ -614,7 +633,9 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         p_1D = np.linspace(start=p_min,stop=p_max,num=num_P) # [dimensionless = vpar/v]
 
         # New (normalized) velocity and pitch angle grid:
-        v_1D = (np.sqrt(2*charge_electron_SI*(e_1D*1e3)/mass)/vnorm_SI) # [dimensionless]
+        # v_1D = (np.sqrt(2*charge_electron_SI*(e_1D*1e3)/mass)/vnorm_SI) # [dimensionless]
+        a = (e_1D/E0)*1e3
+        v_1D = (clight_SI / vnorm_SI) * np.sqrt( (1 + a)**2 - 1) # [dimensionless]
         t_1D = np.arccos(p_1D)
 
         # Interpolate fbm_nc at v_1D and t_1D:
@@ -716,7 +737,8 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         vv, tt = np.meshgrid(v_nc, t_nc, indexing='ij')
         vvpar = vv * np.cos(tt)
         vvper = vv * np.sin(tt)
-        ee_nc = (0.5 * mass * (vv * vnorm_SI) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
+        # ee_nc = (0.5 * mass * (vv * vnorm_SI) ** 2) / (charge_electron_SI * 1e3)  # Energy grid in [keV]
+        ee_nc = (np.sqrt(1 + (vv*vnorm_SI/clight_SI)**2 ) - 1)*E0*1e-3
         pp_nc = np.cos(tt)
 
         # Plot distribution function in vpar and vper coords:
@@ -754,7 +776,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         data = fbm_grid[:, :, ir, iz]
         ee,pp = np.meshgrid(e_1D, p_1D, indexing='ij')
         h_cntr = ax1.contourf(ee, pp, data)
-        ax1.set_xlim([0, enorm])
+        ax1.set_xlim([0, 1.5*enorm])
         ax1.set_xlabel('Energy [keV]',fontsize=14)
         ax1.set_ylabel(r'pitch $v_{\parallel}/v$',fontsize=14)
         ax1.set_title('Ion f4d, R = 0, Z = 0 (FIDASIM ready)')
@@ -765,7 +787,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         iz = np.int64(np.round(fbm_nc.shape[3]/2))
         data = fbm_nc[:,:,ir,iz]
         h_cntr = ax2.contourf(ee_nc,pp_nc,data)
-        ax2.set_xlim([0,enorm])
+        ax2.set_xlim([0,1.5*enorm])
         ax2.set_xlabel('Energy [keV]',fontsize=14)
         ax2.set_title('Ion f4d, R = 0, Z = 0 (from CQL3D)')
         fig.colorbar(h_cntr, ax=ax2)

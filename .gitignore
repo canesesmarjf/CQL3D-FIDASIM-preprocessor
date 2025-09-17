@@ -33,6 +33,12 @@ Step_1a_coupled_runs/**/distrfunc
 
 # Ignore all archived files for now:
 archived/
+to_be_deleted/
+to_be_updated/
+
+# Ignore all log file:
+*.out
+*.log
 
 __pycache__
 *.asv

@@ -88,6 +88,12 @@ beam_grid.y = beam_grid.ymin + (ii-0.5)*beam_grid.dy;
 ii = 1:1:beam_grid.nz;
 beam_grid.z = beam_grid.zmin + (ii-0.5)*beam_grid.dz;
 
-% Compute beam grid in UVW:
+% Package grid's dimensions into vector:
+beam_grid.ng = [beam_grid.nx,beam_grid.ny, beam_grid.nz];
+
+% Define the beam grid's spatial extents:
+beam_grid.length(1) = beam_grid.xmax - beam_grid.xmin;
+beam_grid.length(2) = beam_grid.ymax - beam_grid.ymin;
+beam_grid.length(3) = beam_grid.zmax - beam_grid.zmin;
 
 end

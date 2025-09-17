@@ -5,7 +5,7 @@ function save_fig(hfig,output_dir, file_name)
     % PDF figure:
     exportgraphics(hfig, figureName + ".pdf",'Resolution',600,'ContentType', 'vector') 
 
-    % TIFF figure:
+    % PNG figure:
     exportgraphics(hfig, figureName + ".png",'Resolution',600) 
 
 end

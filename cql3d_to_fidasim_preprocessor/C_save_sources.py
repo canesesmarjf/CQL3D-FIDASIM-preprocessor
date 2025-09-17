@@ -12,6 +12,7 @@ import argparse
 import f90nml
 import warnings
 import socket
+import time
 from datetime import datetime
 
 # ======================================================================================================================
@@ -89,11 +90,15 @@ def sorting_key(file_name):
     # Check for "birth.h5" or "birth_0.h5" and prioritize them
     if file_name.endswith("birth.h5") or file_name.endswith("birth_0.h5"):
         return 0  # Assign the highest priority
+    elif file_name.endswith("sink.h5") or file_name.endswith("sink_0.h5"):
+        return 0  # Also highest priority
     else:
-        # Extract the numeric part (after "birth_") or assign a large number if no number is found
+        # Extract the numeric part (after "birth_" or "sink_") or assign a large number
         parts = file_name.split("_")
         if len(parts) > 2 and parts[2].startswith("birth") and parts[2][5:-3].isdigit():
             return int(parts[2][5:-3])
+        elif len(parts) > 2 and parts[2].startswith("sink") and parts[2][4:-3].isdigit():
+            return int(parts[2][4:-3])
         return int(parts[-1].split(".")[0]) if parts[-1].split(".")[0].isdigit() else float('inf')
 
 def find_source_files(type,directory):
@@ -293,14 +298,16 @@ def main():
 
     # Get quantities resolved by 0th and 1st generation:
     # ======================================================================================================================
-    n_birth = np.zeros(2)
-    n_sink = np.zeros(2)
-    birth_flux = np.zeros(2)
-    sink_flux = np.zeros(2)
-    birth_pwr = np.zeros(2)
-    sink_pwr = np.zeros(2)
+    n_birth_sets = len(birth_data)
+    n_sink_sets = len(birth_data)
+    n_birth = np.zeros(n_birth_sets)
+    n_sink = np.zeros(n_sink_sets)
+    birth_flux = np.zeros(n_birth_sets)
+    sink_flux = np.zeros(n_sink_sets)
+    birth_pwr = np.zeros(n_birth_sets)
+    sink_pwr = np.zeros(n_sink_sets)
 
-    for i in range(0, 2, 1):
+    for i in range(0, n_birth_sets, 1):
         try:
             n_birth[i] = int(birth_data[i]['weight'].shape[0])
             birth_flux[i] = birth_data[i]['flux']
@@ -308,12 +315,17 @@ def main():
         except:
             print(" ")
             print("birth_data[" + str(i) + "] doest not exist!")
-
+            n_birth[i] = 0
+            birth_flux[i] = 0
+            birth_pwr[i] = 0
         try:
             n_sink[i] = int(sink_data[i]['weight'].shape[0])
             sink_flux[i] = sink_data[i]['flux']
             sink_pwr[i] = sink_data[i]['power']
         except:
+            n_sink[i] = 0
+            sink_flux[i] = 0
+            sink_pwr[i] = 0
             print(" ")
             print("sink_data[" + str(i) + "] doest not exist!")
 
@@ -355,6 +367,9 @@ def main():
         print(f"{i:<6} {sink_flux[i]:<20.6e} {sink_pwr[i] * 1e-3:<20.3f} {int(n_sink[i]):<10}")
 
     print("==========================================================================================")
+
+    print(" ")
+    print("Net number of source points: " + str(net_num_parts) )
 
     print(" ")
     print("Injected NBI power: " + str(nbi_inj_power * 1e-6) + " [MW]")
@@ -400,14 +415,46 @@ def main():
     padding_length = 44 - len(f"host={hostname}")
     padding = " " * max(padding_length, 0)
 
-    header_part_1 =\
+    # Fallback values if index 1 does not exist
+    def safe_get(array, index, default=0.0):
+        return array[index] if len(array) > index else default
+
+    def safe_get_int(array, index, default=0):
+        return int(array[index]) if len(array) > index else default
+
+    # Example: assume all arrays are numpy arrays
+    birth_flux_0 = safe_get(birth_flux, 0)
+    birth_flux_1 = safe_get(birth_flux, 1)
+    birth_pwr_0 = safe_get(birth_pwr, 0)
+    birth_pwr_1 = safe_get(birth_pwr, 1)
+    n_birth_0 = safe_get_int(n_birth, 0)
+    n_birth_1 = safe_get_int(n_birth, 1)
+
+    sink_flux_0 = safe_get(sink_flux, 0)
+    sink_flux_1 = safe_get(sink_flux, 1)
+    sink_pwr_0 = safe_get(sink_pwr, 0)
+    sink_pwr_1 = safe_get(sink_pwr, 1)
+    n_sink_0 = safe_get_int(n_sink, 0)
+    n_sink_1 = safe_get_int(n_sink, 1)
+
+#     header_part_1 =\
+#     f"""host={hostname:<30}date={current_date:<20}
+# {"GEN":<5} {"TYPE":<10} {"FLUX [p/s]":<20} {"PWR [W]":<20} {"num_parts":<10}
+# {"-" * 80}
+# {0:<5} {"BIRTH":<10} {birth_flux[0]:<20.6e} {birth_pwr[0]:<20.6e} {int(n_birth[0]):<10}
+# {1:<5} {"BIRTH":<10} {birth_flux[1]:<20.6e} {birth_pwr[1]:<20.6e} {int(n_birth[1]):<10}
+# {0:<5} {"SINK ":<10} {sink_flux[0]:<20.6e} {sink_pwr[0]:<20.6e} {int(n_sink[0]):<10}
+# {1:<5} {"SINK ":<10} {sink_flux[1]:<20.6e} {sink_pwr[1]:<20.6e} {int(n_sink[1]):<10}
+# """
+
+    header_part_1 = \
     f"""host={hostname:<30}date={current_date:<20}
 {"GEN":<5} {"TYPE":<10} {"FLUX [p/s]":<20} {"PWR [W]":<20} {"num_parts":<10}
 {"-" * 80}
-{0:<5} {"BIRTH":<10} {birth_flux[0]:<20.6e} {birth_pwr[0]:<20.6e} {int(n_birth[0]):<10}
-{1:<5} {"BIRTH":<10} {birth_flux[1]:<20.6e} {birth_pwr[1]:<20.6e} {int(n_birth[1]):<10}
-{0:<5} {"SINK ":<10} {sink_flux[0]:<20.6e} {sink_pwr[0]:<20.6e} {int(n_sink[0]):<10}
-{1:<5} {"SINK ":<10} {sink_flux[1]:<20.6e} {sink_pwr[1]:<20.6e} {int(n_sink[1]):<10}
+{0:<5} {"BIRTH":<10} {birth_flux_0:<20.6e} {birth_pwr_0:<20.6e} {int(n_birth_0):<10}
+{1:<5} {"BIRTH":<10} {birth_flux_1:<20.6e} {birth_pwr_1:<20.6e} {int(n_birth_1):<10}
+{0:<5} {"SINK ":<10} {sink_flux_0:<20.6e} {sink_pwr_0:<20.6e} {int(n_sink_0):<10}
+{1:<5} {"SINK ":<10} {sink_flux_1:<20.6e} {sink_pwr_1:<20.6e} {int(n_sink_1):<10}
 """
 
     header_part_2 =\
@@ -445,7 +492,10 @@ x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)  
 
     # Save the data to the file with the empty header and specified precision:
     # ======================================================================================================================
+    print("Saving sources ...")
     np.savetxt(filename, data, delimiter=" ", fmt=fmt, header=header, comments="")
+    print("Sources Saved!")
+    time.sleep(5)
 
 if __name__ == "__main__":
     main()

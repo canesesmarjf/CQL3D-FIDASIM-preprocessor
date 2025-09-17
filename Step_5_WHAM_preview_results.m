@@ -2,7 +2,12 @@
 
 clear all
 close all
-clc
+% clc
+
+cd(fileparts(mfilename('fullpath')));
+
+disp("Current folder during execution:")
+disp(pwd)
 
 addpath(genpath("./matlab_postprocessing/"));
 
@@ -16,13 +21,14 @@ scenario = 5.2;
 scenario = 8;
 scenario = 5.3;
 scenario = 10;
-scenario = 11;
+% scenario = 11;
 scenario = 1;
+scenario = 12;
 
 switch scenario
     case 1
         run_id = "WHAM_test";
-        out_dir = "output_10/";
+        out_dir = "";
         fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + out_dir;
         cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + out_dir;                  
     case 2
@@ -76,7 +82,27 @@ switch scenario
     case 11
         run_id = "WHAM_high_ne_nonthermal_multistep_cx";
         fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/";
-        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/";                  
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/"; 
+    case 12
+        run_id = "WHAM_test";
+        fidasim_run_dir  = "./Step_1a_coupled_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1a_coupled_runs/" + run_id + "/";   
+    case 13
+        run_id = "WHAM_test_freya";
+        fidasim_run_dir  = "./Step_1a_coupled_runs/" + run_id + "/";
+        cql3d_run_dir = "./Step_1a_coupled_runs/" + run_id + "/";  
+    case 14
+        run_id = "WHAM_Bob_IAEA_wall";
+%         scenario = "scenario_3/";
+        scenario = "2025_08_22_FLR_0/";
+        scenario = "";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;          
+    case 15
+        run_id = "WHAM_Bob_IAEA_wall";
+        scenario = "";
+        fidasim_run_dir  = "./Step_1a_coupled_runs/" + run_id + "/" + scenario;
+        cql3d_run_dir = "./Step_1a_coupled_runs/" + run_id + "/" + scenario;                  
 end
 
 %% Get data:
@@ -120,12 +146,61 @@ else
     disp("Birth_1 data not available ...")
 end
 
+birth_file_2 = fidasim_run_dir + run_id + "_birth_2.h5";
+if exist(birth_file_2)==2
+    birth_2 = read_fidasim_sources("birth_2",fidasim_run_dir, run_id);
+else
+    disp("Birth_2 data not available ...")
+end
+
+birth_file_3 = fidasim_run_dir + run_id + "_birth_3.h5";
+if exist(birth_file_3)==2
+    birth_3 = read_fidasim_sources("birth_3",fidasim_run_dir, run_id);
+else
+    disp("Birth_3 data not available ...")
+end
+
+birth_file_4 = fidasim_run_dir + run_id + "_birth_4.h5";
+if exist(birth_file_4)==2
+    birth_4 = read_fidasim_sources("birth_4",fidasim_run_dir, run_id);
+else
+    disp("Birth_4 data not available ...")
+end
+
 % Sink Profile:
 sink_file = fidasim_run_dir + run_id + "_sink.h5";
 if exist(sink_file)==2
     sink = read_fidasim_sources("sink",fidasim_run_dir, run_id);
 else
     disp("Sink data not available ...")
+end
+
+sink_1_file = fidasim_run_dir + run_id + "_sink_1.h5";
+if exist(sink_1_file)==2
+    sink_1 = read_fidasim_sources("sink_1",fidasim_run_dir, run_id);
+else
+    disp("Sink_1 data not available ...")
+end
+
+sink_2_file = fidasim_run_dir + run_id + "_sink_2.h5";
+if exist(sink_2_file)==2
+    sink_2 = read_fidasim_sources("sink_2",fidasim_run_dir, run_id);
+else
+    disp("Sink_2 data not available ...")
+end
+
+sink_3_file = fidasim_run_dir + run_id + "_sink_3.h5";
+if exist(sink_3_file)==2
+    sink_3 = read_fidasim_sources("sink_3",fidasim_run_dir, run_id);
+else
+    disp("Sink_3 data not available ...")
+end
+
+sink_4_file = fidasim_run_dir + run_id + "_sink_4.h5";
+if exist(sink_4_file)==2
+    sink_4 = read_fidasim_sources("sink_4",fidasim_run_dir, run_id);
+else
+    disp("Sink_4 data not available ...")
 end
 
 % CQL3D:
@@ -189,6 +264,14 @@ if exist(sink_file)==2
         (sink.vpar, sink.vper, sink.weight, npar, nper);
 end
 
+if exist(sink_1_file)==2
+    npar = 70;
+    nper = 35;
+    [sink_1_f, sink_1_vpar, sink_1_vper] = ...
+        accumulate_source_on_velocity_grid...
+        (sink_1.vpar, sink_1.vper, sink_1.weight, npar, nper);
+end
+
 % CX neutrals on the wall:
 % =========================================================================
 if exist(sink_file)==2
@@ -201,9 +284,9 @@ end
 % Plasma edge:
 % =========================================================================
 [phi,bflux,bflux_LCFS,R_lcfs,Z_lcfs] = ...
-    calculate_plasma_boundary(plasma,fields,1e12);
+    calculate_plasma_boundary(plasma,fields,0.3e13);
 
-%% Print NBI absorption diagnostic:
+%% COMPUTE: NBI absorption diagnostic:
 
 if exist(birth_file)==2
 
@@ -252,11 +335,15 @@ end
 if plot_plasma
     % Plot data:
     figure('color','w')
-    Z = plasma.dene.*double(plasma.mask);
+%     Z = plasma.dene.*double(plasma.mask);
+    mask = double(plasma.mask);
+    mask(mask==0) = nan;
+    Z = plasma.dene.*mask;
     mesh(plasma.r2d, plasma.z2d, Z)
     xlabel('R [cm]')
     ylabel('Z [cm]')
     title('dene')
+    zlim([1e4,max(plasma.dene(:))])
     
     % Plot data:
     figure('color','w')
@@ -264,6 +351,7 @@ if plot_plasma
     mesh(plasma.r2d, plasma.z2d, Z)
     xlabel('R [cm]')
     ylabel('Z [cm]')
+    zlabel('[keV]')
     title('te')
     
     % Plot data:
@@ -272,6 +360,7 @@ if plot_plasma
     mesh(plasma.r2d, plasma.z2d, Z)
     xlabel('R [cm]')
     ylabel('Z [cm]')
+    zlabel('[keV]')    
     title('ti')
 end
 %% Plot fields:
@@ -368,6 +457,100 @@ if exist(sink_file)==2
 
     if save_cx_impact_figs
         save_fig(hfig,fidasim_run_dir,"cx_ion_sink_profile"); 
+    end
+end
+
+if exist(sink_1_file)==2
+        
+    hfig = figure('color','w');
+    box on
+    hold on
+    surf(sink_1_vpar, sink_1_vper, sink_1_f','LineStyle','none');
+    surf(birth_vpar, birth_vper, 1*birth_f','LineStyle','none');
+
+    % Plot beam energies:
+    [e_levels,~,~] = unique(birth.energy);
+    ie = 1:10:numel(birth.energy);
+    hnbi = plot3(birth.vpar(ie), birth.vper(ie), max(sink_1_f(:))*ones(size(ie)),'go');
+    hnbi.MarkerEdgeColor = 'g';
+    hnbi.MarkerFaceColor = hnbi.MarkerEdgeColor;
+
+    set(gca, 'YDir', 'normal');
+    xlabel('$v_{\parallel}$ [cm/s]','Interpreter','latex','FontSize',18);
+    ylabel('$v_{\perp}$ [cm/s]','Interpreter','latex','FontSize',18);
+    title({'Ion sink-1 profile';'$f_+(\vec{v})\int{ f_B(\vec{v}'')\langle{\sigma v_{rel}}\rangle_\phi^{cx} d^3 v''}$'},'Interpreter','latex','FontSize',16); % (\vec{v},\vec{v}'')
+    set(gca,'ZScale','lin')
+    colormap(flipud(hot))
+    caxis([0,max(max(sink_1_f))])
+    grid on;
+    set(gca,'PlotBoxAspectRatio',[1 0.5 1])
+    colorbar;
+
+    % Draw a circle at various energies:
+    energy_vec = [40,60,80,100]*1e3;
+    vel_vec = 1e2*sqrt(2*e_c*energy_vec/(2*m_p)); % [cm/s]
+    theta = linspace(0,2*pi,1e2);
+    line_color = {'g','m','c','k'};
+    hold on; 
+    for ii = 1:numel(vel_vec)
+        hline(ii)=plot3(vel_vec(ii)*cos(theta),vel_vec(ii)*sin(theta),5e24*ones(size(theta)),line_color{ii},'LineWidth',2);
+        legend_text{ii} = num2str(energy_vec(ii)*1e-3,3) + " [keV]";
+    end
+    legend_text{end+1} = "NBI";
+    legend([hline,hnbi],legend_text)
+
+    vmax = vel_vec(3);
+    xlim([-vmax,vmax]*1.2)
+    ylim([    0,vmax]*1.2)
+
+    % Total power in ions deposited in [W]:
+    Pcx_1 = sum(sink_1.energy.*sink_1.weight*1e3*e_c);
+    disp(" ")
+    disp("(FIDASIM) Total power lost to CX (sink-1): " + num2str(Pcx_1*1e-3,4) + " [kW]")
+
+    % Ratio between sink current and birth current:
+    r_cx_1 = sum(sink_1.weight) / sum(birth_1.weight);
+    disp(" ")
+    disp("(FIDASIM) r_cx_1 = sum(sink_1.w)/sum(birth_1.w): " + num2str(r_cx_1,3))
+
+    if exist(sink_2_file) == 2
+         % Total power in ions deposited in [W]:
+        Pcx_2 = sum(sink_2.energy.*sink_2.weight*1e3*e_c);
+        disp(" ")
+        disp("(FIDASIM) Total power lost to CX (sink-2): " + num2str(Pcx_2*1e-3,4) + " [kW]")
+    
+        % Ratio between sink current and birth current:
+        r_cx_2 = sum(sink_2.weight) / sum(birth_2.weight);
+        disp(" ")
+        disp("(FIDASIM) r_cx_2 = sum(sink_2.w)/sum(birth_2.w): " + num2str(r_cx_2,3))
+    end
+
+    if exist(sink_3_file) == 2
+         % Total power in ions deposited in [W]:
+        Pcx_3 = sum(sink_3.energy.*sink_3.weight*1e3*e_c);
+        disp(" ")
+        disp("(FIDASIM) Total power lost to CX (sink-3): " + num2str(Pcx_3*1e-3,4) + " [kW]")
+    
+        % Ratio between sink current and birth current:
+        r_cx_3 = sum(sink_3.weight) / sum(birth_3.weight);
+        disp(" ")
+        disp("(FIDASIM) r_cx_3 = sum(sink_3.w)/sum(birth_3.w): " + num2str(r_cx_3,3))
+    end
+
+    if exist(sink_4_file) == 2
+         % Total power in ions deposited in [W]:
+        Pcx_4 = sum(sink_4.energy.*sink_4.weight*1e3*e_c);
+        disp(" ")
+        disp("(FIDASIM) Total power lost to CX (sink-4): " + num2str(Pcx_4*1e-3,4) + " [kW]")
+    
+        % Ratio between sink current and birth current:
+        r_cx_4 = sum(sink_4.weight) / sum(birth_4.weight);
+        disp(" ")
+        disp("(FIDASIM) r_cx_4 = sum(sink_4.w)/sum(birth_4.w): " + num2str(r_cx_4,3))
+    end    
+
+    if save_cx_impact_figs
+        save_fig(hfig,fidasim_run_dir,"cx_ion_sink_1_profile"); 
     end
 end
 
@@ -535,7 +718,8 @@ h3d = figure('color','w');
 % Plot Plasma edge as a surface:
 face_alpha = 0.2;
 numAngles = 30;
-plot_LCFS_surface(gca,R_lcfs,Z_lcfs,numAngles,face_alpha)
+face_color = 'bl';
+plot_LCFS_surface(gca,R_lcfs,Z_lcfs,numAngles,face_alpha,face_color)
 
 % Plot NBI optical axis:
 nbi_path_length = 300;
@@ -550,13 +734,13 @@ camlight;
 lighting gouraud;
 
 % Add birth points:
-if exist(birth_file)==2
+if exist(birth_file)==2 & 1
     hold on
     plot3(birth.U,birth.V,birth.W,'k.')
     hold off
 end
 
-if exist(birth_file_1)==2
+if exist(birth_file_1)==2 & 1
     hold on
     plot3(birth_1.U,birth_1.V,birth_1.W,'r.','MarkerSize',3)
     hold off
@@ -566,6 +750,12 @@ end
 if exist(sink_file)==2
     hold on
     plot3(sink.U,sink.V,sink.W,'g.')
+    hold off
+end
+
+if exist(sink_1_file)==2
+    hold on
+    plot3(sink_1.U,sink_1.V,sink_1.W,'g.')
     hold off
 end
 
@@ -587,6 +777,24 @@ if 0
     plot3(WW',zeros(size(WW')),UU','k')
 end
 
+if 1
+    alpha_val = 0.75;
+
+    % Define boxes
+    pump    = struct('xmin',beam_grid.xmax, 'xmax',beam_grid.xmax, 'ymin', -15, 'ymax', 15, 'zmin', -25-15, 'zmax',-25 + 15);
+    throat1 = struct('xmin',  -5, 'xmax',   5, 'ymin',  -5, 'ymax',  5, 'zmin',beam_grid.zmax, 'zmax',beam_grid.zmax); % flat Z
+    throat2 = struct('xmin',  -5, 'xmax',   5, 'ymin',  -5, 'ymax',  5, 'zmin',beam_grid.zmin, 'zmax',beam_grid.zmin); % flat Z
+    Ta_surf = struct('xmin',beam_grid.xmin, 'xmax',beam_grid.xmin, 'ymin', -30, 'ymax', 30, 'zmin', -30, 'zmax',  30); % flat X
+
+    % Draw each
+    draw_box(pump,    'red',    alpha_val);
+    draw_box(throat1, 'blue',   alpha_val);
+    draw_box(throat2, 'blue',   alpha_val);
+    draw_box(Ta_surf, [1 0.5 0], alpha_val);  % orange
+
+end
+
+
 %% Plot ne and nn radial profiles:
 
 figure('color','w')
@@ -602,7 +810,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title('Electron density [cm^{-3}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -617,7 +825,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title('Neutral density [cm^{-3}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -643,7 +851,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title("Neutral pressure " + units)
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -665,7 +873,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title('Electron temperture [keV]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -713,24 +921,48 @@ legend(hr,legend_text)
 set(gca,'FontSize',14)
 clear hr
 
-%% CARTESIAN: Plot 0th and 1st gen birth profiles
+%% PLOT: RZ 0th and 1st gen birth profiles
 
 grid_x = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/x_grid');
 grid_y = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/y_grid');
 grid_z = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/z_grid');
 
-x_vec = permute(grid_x(:,1,:),[1,3,2]);
-y_vec = permute(grid_z(:,1,:),[1,3,2]);
+% x_vec = permute(grid_x(:,1,:),[1,3,2]);
+% y_vec = permute(grid_z(:,1,:),[1,3,2]);
 
-in = mean(birth.dens_full(:,17:23,:),2);
-data_0 = permute(in,[1,3,2]); % [cm^-3/s]
+% Assemble all grids together:
+xyz_grid{1} = birth.x;
+xyz_grid{2} = birth.y;
+xyz_grid{3} = birth.z;
+
+% Find dimension with longest length:
+[~,dim_max] = max(beam_grid.length);
+dim_max = 2;
+
+% Select data slice:
+di = 3;
+imid = round(beam_grid.ng(dim_max)/2);
+rng_ind = imid-di:imid+di;
+in = select_slice(birth.dens_full,dim_max,rng_ind);
+in = mean(in,dim_max);
+data_0 = squeeze(in);
+% in = mean(birth.dens_full(:,rng_ind,:),2);
+% data_0 = permute(in,[1,3,2]); % [cm^-3/s]
+
+% Select grid vectors:
+cols = 1:3; % Columns of xyz_grid: [x y z]
+keep_cols = cols(cols ~= dim_max);  % Keep all except dim_max
+x_vec = xyz_grid{keep_cols(2)};
+y_vec = xyz_grid{keep_cols(1)};
 
 try
-in = mean(birth_1.dens_dcx(:,17:23,:),2);
+in = mean(birth_1.dens_dcx(:,rng_ind,:),2);
 data_1 = permute(in,[1,3,2]);  % [cm^-3/s]
 catch
 end
 
+% Plot plasma density:
+% ====================
 figure('color','w')
 lcfs_color = 'r';
 latex_fontsize = 17;
@@ -741,26 +973,29 @@ contourf(+plasma.r2d,plasma.z2d,(plasma.dene),20,'LineStyle','none')
 contourf(-plasma.r2d,plasma.z2d,(plasma.dene),20,'LineStyle','none')
 plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
 plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
-% set(gca,'PlotBoxAspectRatio',[1,2,1])
 colorbar
-xlim([-1,1]*20)
-ylim([-1,1]*100)
-set(gca,'FontSize',12,'FontName','Helvetica')
+xlim([-1,1]*beam_grid.zmax)
+xlim([-1,1]*beam_grid.xmax)
+set(gca,'FontSize',16,'FontName','Helvetica')
 title("Electron density [cm$^{-3}$]",Interpreter="latex",FontSize=latex_fontsize)
 xlabel('R [cm]')
 zlabel('Z [cm]')
 % colormap(flipud(hot))
 
+% Plot birth rate:
+% ===============================
 figure('color','w')
-lcfs_color = 'r';
+lcfs_color = 'bl';
+fontsize.axes = 18;
+fontsize.labels = 24;
 
 subplot(1,2,1)
 
-plot_log10 = 1;
+plot_log10 = 0;
 if plot_log10
     z_vec = log10(data_0);
-    min_zv = min(z_vec(:));
     max_zv = max(z_vec(:));
+    min_zv = max_zv - 6;
     crange = [min_zv,max_zv]
     z_vec(isinf(z_vec)) = min_zv;
     scale_txt = "(log10)"
@@ -782,24 +1017,24 @@ colorbar
 caxis(crange);
 plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
 plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
-xlim([-1,1]*20)
-ylim([-1,1]*100)
-set(gca,'FontSize',12,'FontName','Helvetica')
-ylabel("z [cm]",'Interpreter','latex',FontSize=17)
-xlabel("x [cm]",'Interpreter','latex',FontSize=17)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
+set(gca,'FontSize',fontsize.axes,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+xlabel("x [cm]",'Interpreter','latex',FontSize=fontsize.labels)
 title(["0$^{th}$ gen ion birth rate (NBI)", ...
-    scale_txt + " [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=16)
-% colormap(flipud(hot))
+    scale_txt + " [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=fontsize.labels)
+colormap(flipud(hot))
 
 subplot(1,2,2)
 
 try
 plot_log10 = 0;
 if plot_log10
-    z_vec = log10(data_1);
+    z_vec = real(log10(data_0+data_1));
     min_zv = min(z_vec(:));
     max_zv = max(z_vec(:));
-    crange = [min_zv,max_zv]
+%     crange = [min_zv,max_zv]
     z_vec(isinf(z_vec)) = min_zv;
     scale_txt = "(log10)"
 else
@@ -820,16 +1055,129 @@ colorbar
 caxis(crange);
 plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
 plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
-xlim([-1,1]*20)
-ylim([-1,1]*100)
-set(gca,'FontSize',12,'FontName','Helvetica')
-ylabel("z [cm]",'Interpreter','latex',FontSize=18)
-xlabel("x [cm]",'Interpreter','latex',FontSize=18)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
+set(gca,'FontSize',fontsize.axes,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+xlabel("x [cm]",'Interpreter','latex',FontSize=fontsize.labels)
 title(["1$^{st}$ gen ion birth rate (DCX)", ...
-    "(log10) [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=16)
-% colormap(flipud(hot))
+    "(log10) [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=fontsize.labels)
+colormap(flipud(hot))
 catch
 end
+
+%% PLOT: XY 0th and 1st gen birth profiles
+
+grid_x = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/x_grid');
+grid_y = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/y_grid');
+grid_z = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/z_grid');
+
+x_vec = permute(grid_x(1,:,:),[2,3,1]); 
+y_vec = permute(grid_y(1,:,:),[2,3,1]); 
+z_vec = permute(grid_z(1,:,:),[2,3,1]);
+
+% birth.dens_full :: [U V W] where W is along the machine axis
+di = 5;
+imid = round(beam_grid.nx/2);
+rng_x = imid-di:imid+di;
+data_0 = mean(birth.dens_full(rng_x,:,:),1); % [cm^-3/s]
+data_0 = permute(data_0,[2 3 1]);
+
+try
+data_1 = mean(birth_1.dens_dcx(rng_x,:,:),1); % [cm^-3/s]
+data_1 = permute(data_1,[2 3 1]);
+catch
+end
+
+% Plasma edge:
+R_edge = R_lcfs(round(numel(R_lcfs)/2));
+X_edge = R_edge*cos(linspace(0,2*pi));
+Y_edge = R_edge*sin(linspace(0,2*pi));
+
+% Plot birth rate:
+% ===============================
+figure('color','w')
+lcfs_color = 'bl';
+fontsize.axes = 18;
+fontsize.labels = 24;
+
+subplot(1,2,1)
+
+plot_log10 = 1;
+if plot_log10
+    z_vec = real(log10(data_0));
+    max_zv = max(z_vec(:))+0.5;
+    min_zv = max_zv - 4;
+    crange = [min_zv,max_zv]
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "(log10)"
+else
+    z_vec = (data_0);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv];
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "";
+end
+
+box on
+hold on
+levels = 40;
+line_style = 'none';
+contourf(x_vec,y_vec,z_vec,levels,'linestyle',line_style)
+colorbar
+caxis(crange);
+axis image
+plot(X_edge,Y_edge,lcfs_color,'LineWidth',3)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.zmax)
+set(gca,'FontSize',fontsize.axes,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+xlabel("x [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+title(["0$^{th}$ gen ion birth rate (NBI)", ...
+    scale_txt + " [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=fontsize.labels)
+colormap(flipud(hot))
+
+subplot(1,2,2)
+
+try
+plot_log10 = 1;
+if plot_log10
+    z_vec = real(log10(data_0+data_1));
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+%     crange = [min_zv,max_zv]
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "(log10)"
+else
+    z_vec = (data_1);
+    min_zv = min(z_vec(:));
+    max_zv = max(z_vec(:));
+    crange = [min_zv,max_zv];
+    z_vec(isinf(z_vec)) = min_zv;
+    scale_txt = "";
+end
+
+box on
+hold on
+levels = 40;
+line_style = 'none';
+contourf(x_vec,y_vec, z_vec,levels,'linestyle',line_style)
+colorbar
+caxis(crange);
+axis image
+plot(X_edge,Y_edge,lcfs_color,'LineWidth',3)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.zmax)
+set(gca,'FontSize',fontsize.axes,'FontName','Helvetica')
+ylabel("z [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+xlabel("x [cm]",'Interpreter','latex',FontSize=fontsize.labels)
+title(["1$^{st}$ gen ion birth rate (DCX)", ...
+    "(log10) [cm$^{-3}$s$^{-1}$]"],'Interpreter','latex',FontSize=fontsize.labels)
+colormap(flipud(hot))
+catch
+end
+
 %% Convert birth profiles to cylindrical:
 [X_grid, Y_grid, Z_grid] = meshgrid(birth.y, birth.z, birth.x);
 
@@ -857,8 +1205,8 @@ plot(R_lcfs,Z_lcfs,'g','LineWidth',3)
 set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
-xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([0,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
 title('0th gen ION BIRTH [cm^{-3}s^{-1}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -884,8 +1232,8 @@ plot(R_lcfs,Z_lcfs,'g','LineWidth',3)
 set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
-xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([0,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
 title('1st gen DCX ION BIRTH [cm^{-3}s^{-1}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -913,8 +1261,8 @@ plot(R_lcfs,Z_lcfs,'g','LineWidth',3)
 set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
-xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([0,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
 title('0th gen ION SINK [cm^{-3}s^{-1}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -931,8 +1279,8 @@ plot(R_lcfs,Z_lcfs,'g','LineWidth',3)
 set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
-xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([0,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.xmax)
 title('Impact ionization rate [cm^{-3}s^{-1}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -963,8 +1311,8 @@ plot(Y_edge,Z_edge,'g','LineWidth',3)
 axis image
 colormap(flipud(hot))
 colorbar
-xlim([-1,1]*20)
-ylim([-1,1]*20)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.zmax)
 title('0th gen edge neutral ION BIRTH points U-V plane')
 
 try
@@ -978,8 +1326,8 @@ plot(Y_edge,Z_edge,'g','LineWidth',3)
 axis image
 colormap(flipud(hot))
 colorbar
-xlim([-1,1]*20)
-ylim([-1,1]*20)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.zmax)
 title('0th gen edge neutral ION SINK points U-V plane')
 catch
 end
@@ -995,8 +1343,8 @@ plot(Y_edge,Z_edge,'g','LineWidth',3)
 axis image
 colormap(flipud(hot))
 colorbar
-xlim([-1,1]*20)
-ylim([-1,1]*20)
+xlim([-1,1]*beam_grid.zmax)
+ylim([-1,1]*beam_grid.zmax)
 title('1st gen DCX ION BIRTH points U-V plane')
 catch
 end
@@ -1026,6 +1374,10 @@ try
     denn_dcx_n = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/dcx/dens');
 end
 
+try
+    denn_halo_n = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/halo/dens');
+end
+
 grid_x = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/x_grid');
 grid_y = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/y_grid');
 grid_z = h5read(fidasim_run_dir + run_id + "_neutrals.h5",'/grid/z_grid');
@@ -1040,32 +1392,120 @@ try
     denn_dcx = permute(sum(denn_dcx_n,1),[2,3,4,1]);
 end
 
-figure('color','w');
+try
+    denn_halo = permute(sum(denn_halo_n,1),[2,3,4,1]);
+end
+
+hfig = figure('color','w');
 box on
-lcfs_color = 'r';
-latex_fontsize = 17;
+lcfs_color = 'bl';
+latex_fontsize = 22;
 levels = 30;
 linestyle = 'none';
 x_vec = permute(grid_x(:,1,:),[1,3,2]);
 y_vec = permute(grid_z(:,1,:),[1,3,2]);
-z_mat = permute(mean(denn_dcx(:,17:23,:) + denn_nbi(:,17:23,:),2),[1,3,2]);
 
 subplot(1,2,1)
 hold on
+imid = round(beam_grid.ny/2);
+di = 3;
+rng_ind = imid-3:imid+3;
+z_mat = permute(mean(0*denn_dcx(:,rng_ind,:) + denn_nbi(:,rng_ind,:),2),[1,3,2]);
 contourf(x_vec,y_vec,log10(z_mat),30,'LineStyle',linestyle)
-plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
-plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',3)
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',4)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',4)
 colorbar
-xlim([-1,1]*20)
-ylim([-1,1]*100)
-set(gca,'FontSize',12,'FontName','Helvetica')
-% caxis([2,17]);
-ylabel("z [cm]",'Interpreter','latex',FontSize=17)
-xlabel("x [cm]",'Interpreter','latex',FontSize=17)
-title(["neutral density (NBI + Halo)", ...
-    "(log10) [cm$^{-3}$]"],'Interpreter','latex',FontSize=16)
+xlim([-1,1]*beam_grid.xmax)
+ylim([-1,1]*beam_grid.zmax)
+set(gca,'FontSize',18,'FontName','Helvetica')
+caxis([6,10]);
+ylabel("z [cm]",'Interpreter','latex',FontSize=24)
+xlabel("x [cm]",'Interpreter','latex',FontSize=24)
+title(["neutral density (NBI)", ...
+    "(log10) [cm$^{-3}$]"],'Interpreter','latex',FontSize=22)
+box on
+colormap(flipud(hot))
 
+subplot(1,2,2)
+hold on
+try
+    z_mat = permute(mean(denn_halo(:,rng_ind,:) + denn_dcx(:,rng_ind,:) + 0*denn_nbi(:,rng_ind,:),2),[1,3,2]);
+catch
+    z_mat = permute(mean(denn_dcx(:,rng_ind,:) + 0*denn_nbi(:,rng_ind,:),2),[1,3,2]);    
+end
+contourf(x_vec,y_vec,log10(z_mat),30,'LineStyle',linestyle)
+plot(+R_lcfs,Z_lcfs,lcfs_color,'LineWidth',4)
+plot(-R_lcfs,Z_lcfs,lcfs_color,'LineWidth',4)
+colorbar
+xlim([-1,1]*beam_grid.xmax)
+ylim([-1,1]*beam_grid.zmax)
+set(gca,'FontSize',18,'FontName','Helvetica')
+caxis([6,10]);
+ylabel("z [cm]",'Interpreter','latex',FontSize=24)
+xlabel("x [cm]",'Interpreter','latex',FontSize=24)
+title(["Neutral density (DCX + Halo)", ...
+    "(log10) [cm$^{-3}$]"],'Interpreter','latex',FontSize=24)
+box on
+colormap(flipud(hot))
 
+set(gcf,'Position',[63   248   852   484])
+
+if 1
+    save_fig(hfig,fidasim_run_dir,"denn_profile"); 
+end
+
+% Plot slices of the neutral density profiles:
+
+% Neutral density profile:
+iz = find(beam_grid.z > 30,1);
+iz_rng = iz + [-1:1];
+denn_secondaries = denn_dcx + denn_halo;
+denn_prof = squeeze(mean(denn_secondaries(:,rng_ind,:),2));
+denn_prof = mean(denn_prof(:,iz_rng),2);
+
+% Plasma density profile:
+iz = find(plasma.z > 30,1);
+iz_rng = iz + [-2:2];
+dene_prof = mean(plasma.dene(:,iz_rng),2);
+
+hfig = figure('color','w');
+box on 
+hold on
+hd(1) = plot(x_vec(:,1),denn_prof);
+hd(2) = plot(+plasma.r,dene_prof*1e-0,'r');
+hd(3) = plot(-plasma.r,dene_prof*1e-0,'r');
+set(hd,'linewidth',2)
+set(gca,'fontsize',20)
+set(gca,'YScale','log')
+ylim([1e7,1e14])
+xlim([-1,1]*50)
+% ylim([0,3e9])
+xlabel('x [cm]')
+ylabel('[cm^{-3}]')
+title("density [cm^{-3}] at z = " + round(plasma.z(iz)) + " [cm]")
+grid on
+
+if 1
+    save_fig(hfig,fidasim_run_dir,"denn_radial_profile"); 
+end
+
+return
+
+close 
+if 0    
+    figure('color','w')
+    subplot(1,2,1)
+    hold on
+    contourf(plasma.r2d,plasma.z2d,(plasma.denn*1e-3),30,'LineStyle',linestyle)
+    contourf(-plasma.r2d,plasma.z2d,(plasma.denn*1e-3),30,'LineStyle',linestyle)
+    xlim([-1,1]*beam_grid.zmax)
+    ylim([-1,1]*beam_grid.xmax)
+    set(gca,'FontSize',18,'FontName','Helvetica')
+    colormap(flipud(hot))
+    % caxis([1,9]);
+    ylabel("z [cm]",'Interpreter','latex',FontSize=16)
+    xlabel("x [cm]",'Interpreter','latex',FontSize=16)
+end
 
 denn_full_XZ = permute(sum(denn_full,2),[1,3,2]);
 denn_half_XZ = permute(sum(denn_half,2),[1,3,2]);
@@ -1179,7 +1619,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title('DCX neutral density [cm^{-3}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -1205,7 +1645,7 @@ set(gca,'PlotBoxAspectRatio',[1,2,1])
 colormap(flipud(hot))
 colorbar
 xlim([0,1]*20)
-ylim([-1,1]*100)
+xlim([-1,1]*beam_grid.xmax)
 title('Full neutral density [cm^{-3}]')
 xlabel('R [cm]')
 zlabel('Z [cm]')
@@ -1360,6 +1800,36 @@ function [sink_v_dist, Vcenters] = compute_1D_velocity_distribution(sink_f, sink
 
     % Calculate the centers of the bins for the 1D distribution
     Vcenters = (Vedges(1:end-1) + Vedges(2:end)) / 2;
+end
+
+function draw_box(box, face_color, alpha_val)
+    % Create 8 vertices of the AABB
+    v = [
+        box.xmin, box.ymin, box.zmin;
+        box.xmax, box.ymin, box.zmin;
+        box.xmax, box.ymax, box.zmin;
+        box.xmin, box.ymax, box.zmin;
+        box.xmin, box.ymin, box.zmax;
+        box.xmax, box.ymin, box.zmax;
+        box.xmax, box.ymax, box.zmax;
+        box.xmin, box.ymax, box.zmax;
+    ];
+
+    % Define faces as sets of 4 vertex indices
+    f = [
+        1 2 3 4;  % bottom
+        5 6 7 8;  % top
+        1 2 6 5;  % front
+        2 3 7 6;  % right
+        3 4 8 7;  % back
+        4 1 5 8;  % left
+    ];
+
+    % Draw the patch
+    patch('Vertices', v, 'Faces', f, ...
+          'FaceColor', face_color, ...
+          'FaceAlpha', alpha_val, ...
+          'EdgeColor', face_color);
 end
 
 

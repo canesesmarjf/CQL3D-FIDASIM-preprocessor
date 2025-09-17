@@ -1,4 +1,4 @@
-function plot_LCFS_surface(haxis,R_lcfs,Z_lcfs,numAngles,face_alpha)
+function plot_LCFS_surface(haxis,R_lcfs,Z_lcfs,numAngles,face_alpha,face_color)
 % nunAngles: Number of toroidal angles
 
 % Generate the toroidal angles
@@ -20,7 +20,7 @@ end
 
 % Plot the 3D surface
 hold on
-surf(haxis,U3D, V3D, W3D, 'EdgeColor', 'none','FaceColor',[0.3,0.75,0.93],'FaceAlpha',face_alpha)
+surf(haxis,U3D, V3D, W3D, 'EdgeColor', 'none','FaceColor',face_color,'FaceAlpha',face_alpha)
 hold off
 
 % Formatting

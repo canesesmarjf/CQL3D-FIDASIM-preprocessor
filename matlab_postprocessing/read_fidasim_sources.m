@@ -50,8 +50,24 @@ if strcmp(source_type, 'birth')
     disp('Source type is birth');
 elseif strcmp(source_type,'birth_1')
     disp('Source type is birth_1');
+elseif strcmp(source_type,'birth_2')
+    disp('Source type is birth_2');    
+elseif strcmp(source_type,'birth_3')
+    disp('Source type is birth_3'); 
+elseif strcmp(source_type,'birth_4')
+    disp('Source type is birth_4');    
 elseif strcmp(source_type, 'sink')
     disp('Source type is sink');
+elseif strcmp(source_type,'sink_1')
+    disp('Source type is sink_1');
+elseif strcmp(source_type,'sink_2')
+    disp('Source type is sink_2');     
+elseif strcmp(source_type,'sink_3')
+    disp('Source type is sink_3');     
+elseif strcmp(source_type,'sink_4')
+    disp('Source type is sink_4');     
+elseif strcmp(source_type,'sink_5')
+    disp('Source type is sink_5');     
 else
     error('Invalid source_type. It must be "birth" or "sink" (any case, singular or plural).');
 end
@@ -75,17 +91,28 @@ source_file_name = prefix + "_" + source_type + ".h5";
 source = struct();
 
 % Particle data:
-if strcmpi(source_type,"birth") | strcmpi(source_type,"birth_1")
+info = h5info(source_file_name);
+if strcmpi(source_type,"birth") ...
+   | strcmpi(source_type,"birth_1") ...
+   | strcmpi(source_type,"birth_2") ...
+   | strcmpi(source_type,"birth_3") ...
+   | strcmpi(source_type,"birth_4") ...
     source.n_birth = h5read(source_file_name,'/n_birth');
 else
     source.n_sink = h5read(source_file_name,'/n_sink');
 end
 source.ri = h5read(source_file_name,'/ri'); % in r-z-phi cylindrical coordinates
+source.ri_gc = h5read(source_file_name,'/ri_gc'); % in r-z-phi cylindrical coordinates
 source.vi = h5read(source_file_name,'/vi'); % vr-vz-vphi cyclindrical coords [cm/s]
 source.weight = h5read(source_file_name,'/weight'); % [ions per sec]
 source.energy = h5read(source_file_name,'/energy'); % [keV per ion]:
 
-if strcmpi(source_type,"sink") | strcmpi(source_type,"sink_1")
+if strcmpi(source_type,"sink") ...
+        | strcmpi(source_type,"sink_1") ...
+        | strcmpi(source_type,"sink_2") ...
+        | strcmpi(source_type,"sink_3") ...
+        | strcmpi(source_type,"sink_4") ...
+        | strcmpi(source_type,"sink_5") ...
     try 
         source.denf4d =  h5read(source_file_name,'/denf4d'); % [ion/cm^3 (s/cm)^3]:
         source.denf4d_per_marker =  h5read(source_file_name,'/denf4d_per_marker'); % [ion/cm^3 (s/cm)^3]:
@@ -93,14 +120,19 @@ if strcmpi(source_type,"sink") | strcmpi(source_type,"sink_1")
 end
 
 % Grid data:
-% x,y,z coordinates in beam grid coordinates:
+% X,Y,Z value of cell center in beam grid coordinates
 source.x = h5read(source_file_name,'/grid/x'); % size [nx]
 source.y = h5read(source_file_name,'/grid/y'); % size [ny]
 source.z = h5read(source_file_name,'/grid/z'); % size [nz]
-% x,y,z grid coordinates in machine coordinates, size [nx,ny,nz]:
+
+% X, Y, Z value of cell center in machine coordinates: size [nx,ny,nz]
+% x_grid(x,y,z): Global X position of each beam cell center [cm], transformed from beam coordinates.
 source.x_grid = h5read(source_file_name,'/grid/x_grid');
 source.y_grid = h5read(source_file_name,'/grid/y_grid');
 source.z_grid = h5read(source_file_name,'/grid/z_grid');
+
+% "Birth density: dens(beam_component,x,y,z)"
+% "fast-ions/(s*cm^3)"
 % source flux per unit volume profiles: [ions*cm^{-3}/sec]
 % birth: size: [neut_type:3,nx,ny,nz]
 % sink: size: [1,nx,ny,nz]
@@ -116,7 +148,20 @@ if strcmpi(source_type,"birth")
     source.dens_third = permute(source.dens(3,:,:,:),[2 3 4 1]);
 elseif strcmpi(source_type,"birth_1")
     % Birth_1 flux per unit volume profiles:
-    source.dens_dcx = permute(source.dens(4,:,:,:),[2 3 4 1]);   
+    try
+        source.dens_dcx = permute(source.dens(4,:,:,:),[2 3 4 1]);   
+    catch
+        source.dens_dcx = permute(source.dens(1,:,:,:),[2 3 4 1]);   
+    end
+elseif strcmpi(source_type,"birth_2") ...
+        || strcmpi(source_type,"birth_3") ...
+        || strcmpi(source_type,"birth_4")
+    % Birth_2 flux per unit volume profiles:
+    try
+        source.dens_halo = permute(source.dens(5,:,:,:),[2 3 4 1]);   
+    catch
+        source.dens_halo = permute(source.dens(1,:,:,:),[2 3 4 1]);   
+    end    
 else
     % Rerrange data:
     sink.dens_1 = permute(source.dens(1,:,:,:),[2 3 4 1]);
@@ -137,6 +182,16 @@ source.phi = source.ri(3,:) + 0*pi/2;
 source.U = source.R.*cos(source.phi);
 source.V = source.R.*sin(source.phi);
 source.W = source.Z;
+
+% Source GC position in cylindrical coords [r-z-phi]:
+source.R_gc = source.ri_gc(1,:);
+source.Z_gc = source.ri_gc(2,:);
+source.phi_gc = source.ri_gc(3,:) + 0*pi/2;
+
+% Convert to machine coordinates [UVW]:
+source.U_gc = source.R_gc.*cos(source.phi_gc);
+source.V_gc = source.R_gc.*sin(source.phi_gc);
+source.W_gc = source.Z_gc;
 
 % Source velocities [r-z-phi] cylindrical coords:
 source.vR = source.vi(1,:);

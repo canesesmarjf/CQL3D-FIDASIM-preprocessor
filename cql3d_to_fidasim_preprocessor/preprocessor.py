@@ -374,6 +374,7 @@ def construct_plasma_from_netcdf(config,grid,rho):
     # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
     # We need to make the plasma region defined over a large region.
     max_rho = 5.0
+    max_rho = 1.5
     mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
@@ -976,7 +977,8 @@ def construct_inputs(config, nbi):
                     "calc_bes":calc_bes, "calc_dcx":calc_dcx, "calc_halo":calc_halo, "calc_cold":calc_cold,
                     "calc_birth":calc_birth, "calc_fida_wght":calc_fida_wght,"calc_npa_wght":calc_npa_wght,
                     "calc_pfida":calc_pfida, "calc_pnpa":calc_pnpa,
-                    "result_dir":output_path, "tables_file":fida_dir+'/tables/atomic_tables.h5'}
+                    # "result_dir":output_path, "tables_file":fida_dir+'/tables/atomic_tables.h5'}
+                    "result_dir": output_path, "tables_file": fida_dir + '/tables/atomic_tables_BEAM.h5'}
 
     # Define beam grid:
     basic_bgrid = {}
@@ -1181,6 +1183,11 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     inputs = construct_inputs(config, nbi)
     if plot_flag:
         plot_beam_grid(fig,ax,config)
+
+    # >>> [JFCM, 2025_09_15] >>>
+    # TODO: add this to fida_config.nml
+    inputs['verbose'] = 0
+    # <<< [JFCM, 2025-09-15] <<<
 
     # Produce input files for FIDASIM:
     # ================================

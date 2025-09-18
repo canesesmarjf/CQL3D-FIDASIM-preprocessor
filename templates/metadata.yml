@@ -1,0 +1,119 @@
+RUN:
+  date: ""                # "YYYY-MM-DD"
+  start_time: ""          # from `date +"%Y-%m-%d_%H-%M-%S"`
+  end_time: ""
+  reason: ""
+  description: |
+    # Add multi-line description here
+  comments:
+    - ""                  # Add one or more comments as list items
+
+CQL3DM:
+  executed: false
+  repo: ""
+  branch: ""
+  commit: ""
+  commit_short: ""
+  executable: ""
+  makefile: ""
+  compiler:
+    family: ""
+    version: ""
+    distro: ""
+    frontend: ""
+    path: ""
+  dependencies:
+    libraries:
+      - name: ""
+        version: ""
+        include: ""
+        lib: ""
+    data:
+      - name: ""
+        generator: ""
+        settings: ""
+        file: ""
+        note: ""
+
+FIDASIM:
+  executed: false
+  repo: ""
+  branch: ""
+  commit: ""
+  commit_short: ""
+  executable: ""
+  makefile: ""
+  compiler:
+    family: ""
+    version: ""
+    distro: ""
+    frontend: ""
+    path: ""
+  dependencies:
+    libraries:
+      - name: ""
+        version: ""
+        include: ""
+        lib: ""
+    data:
+      - name: ""
+        generator: ""
+        settings: ""
+        file: ""
+        note: ""
+
+CQL3D-FIDASIM-preprocessor:
+  executed: false
+  repo: ""
+  branch: ""
+  commit: ""
+  commit_short: ""
+  package: ""
+  RequirementsFile: ""
+
+COUPLING:
+  executed: false
+  iterations_planned: 0
+  iterations_completed: 0
+  simulated_time_ms: 0
+  wall_time_s: 0
+
+SYSTEM:
+  host:
+    machine: ""
+    hostname: ""
+  OS:
+    name: ""
+    distribution: ""
+    version: ""
+    kernel: ""
+    architecture: ""
+
+MPI:
+  implementation: ""
+  version: ""
+  launcher: ""
+  launcher_path: ""
+
+SLURM:
+  executed: false
+  nodes: 0
+  tasks_total: 0
+  queue: ""
+  constraint: ""
+  account: ""
+  job_name: ""
+  job_id: null
+  wall_time_requested: ""
+  cpu_bind: ""
+
+PARALLEL:
+  openMP:
+    OMP_PLACES: null
+    OMP_PROC_BIND: null
+  MPI_groups:
+    num_groups: 1
+    groups:
+      - rank_range: ""
+        cpus_per_task: null
+        OMP_NUM_THREADS: null

@@ -1,0 +1,8 @@
+&cql3d_files
+  cqlinput = "cqlinput"
+  eqdsk_file_name = "BEAM_B3.0_beta0.50_R0.4_Z4.5"
+  eqdsk_type = 1 !(1) mirror or (2) toroidal
+  plasma_file_name = "iaea5.1f.nc"
+  f4d_ion_file_name = "iaea5.1f_f4d_001.nc"
+  f4d_electron_file_name = "iaea5.1f_f4d_002.nc"
+/

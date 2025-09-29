@@ -335,7 +335,12 @@ def main():
 
     # Get cql_config:
     cql_run_dir = args.cql_run_dir.rstrip('/')
-    cql_config = cql_run_dir + "/" + run_id + "_cql_config.nml"
+
+    # >>> [JFCM, 2025-09-28] >>>
+    # cql_config = cql_run_dir + "/" + run_id + "_cql_config.nml"
+    cql_config = cql_run_dir + "/" "config_cql.nml"
+    # <<< [JFCM, 2025-09-28] <<<
+
     nml = f90nml.read(cql_config)
 
     # Read cqlinput:

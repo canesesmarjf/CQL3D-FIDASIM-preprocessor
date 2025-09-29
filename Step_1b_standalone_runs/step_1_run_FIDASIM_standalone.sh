@@ -8,10 +8,6 @@
 # ============================================================
 
 # Define run ID:
-#RUN_ID="WHAM_high_ne_nonthermal_multistep_cx"
-#RUN_ID="WHAM_NBI_kunal"
-#RUN_ID="WHAM_Bob_IAEA"
-#RUN_ID="WHAM_Bob_IAEA_edge_neutrals"
 RUN_ID="WHAM_test"
 #RUN_ID="WHAM_Bob_IAEA_wall"
 
@@ -29,9 +25,6 @@ PREPROCESSOR_PLOT=1
 # Enable debugging FIDASIM with linaro forge ddt:
 FIDASIM_DEBUG=0
 
-# TODO:
-# Add which atomic_table to use in simulation via input config file
-# Enable or disable verbose on simulation via input
 # ============================================================
 # ============================================================
 # ======================= USER INPUTS ========================

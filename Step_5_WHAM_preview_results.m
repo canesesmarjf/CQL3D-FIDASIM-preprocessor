@@ -24,6 +24,7 @@ scenario = 10;
 % scenario = 11;
 scenario = 1;
 scenario = 12;
+scenario = 15;
 
 switch scenario
     case 1
@@ -99,10 +100,10 @@ switch scenario
         fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;
         cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;          
     case 15
-        run_id = "WHAM_Bob_IAEA_wall";
+        run_id = "BEAM_003";
         scenario = "";
-        fidasim_run_dir  = "./Step_1a_coupled_runs/" + run_id + "/" + scenario;
-        cql3d_run_dir = "./Step_1a_coupled_runs/" + run_id + "/" + scenario;                  
+        fidasim_run_dir  = "~/CQL3D_coupled_project/run_001/" + run_id + "/";
+        cql3d_run_dir = "~/CQL3D_coupled_project/run_001/" + run_id + "/";                  
 end
 
 %% Get data:
@@ -1450,7 +1451,7 @@ colormap(flipud(hot))
 
 set(gcf,'Position',[63   248   852   484])
 
-if 1
+if 0
     save_fig(hfig,fidasim_run_dir,"denn_profile"); 
 end
 

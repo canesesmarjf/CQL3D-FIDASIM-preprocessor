@@ -1,119 +1,174 @@
 RUN:
-  date: ""                # "YYYY-MM-DD"
-  start_time: ""          # from `date +"%Y-%m-%d_%H-%M-%S"`
-  end_time: ""
-  reason: ""
+  type: "CQL3D-FIDASIM"   # choices: "FIDASIM", "CQL3D", "CQL3D-FIDASIM"
+  date: "2025-09-24"
+  start_time: "2025-09-24_18-43-00"   # from `date +"%Y-%m-%d_%H-%M-%S"`
+  end_time: "2025-09-25_14-19-16"
+  reason: "Use HHFW, with NBI and gas puff on a 600 timestep run using CQL3DM and FIDASIM"
   description: |
-    # Add multi-line description here
+    We are using a cylindrical analytic-surface model of the vacuum vessel
+    to capture the production of neutral gas density in the SOL.
   comments:
-    - ""                  # Add one or more comments as list items
+    - "Bob has run some cases with HHFW and he got ions in the MeV range"
+    - "Need to update atomic tables to handle MeV energy ions from RF"
+    - "So far, it has been 11 hours since start of run at n = 388, around 100 sec per timestep"
+    - "Modified preprocessor to use new atomic table found in run_dir"
+    - "Recomputed atomic tables with 10 MeV energies and temperatures"
+    - "Discrepancy between density from f4d and mnemonic file observed in preprocessor"
+    - "real	1531m39.520s"
+    - "user	18049m34.882s"
+    - "sys	13468m16.702s"
 
-CQL3DM:
-  executed: false
-  repo: ""
-  branch: ""
-  commit: ""
-  commit_short: ""
-  executable: ""
-  makefile: ""
-  compiler:
-    family: ""
-    version: ""
-    distro: ""
-    frontend: ""
-    path: ""
-  dependencies:
-    libraries:
-      - name: ""
-        version: ""
-        include: ""
-        lib: ""
-    data:
-      - name: ""
-        generator: ""
-        settings: ""
-        file: ""
-        note: ""
-
-FIDASIM:
-  executed: false
-  repo: ""
-  branch: ""
-  commit: ""
-  commit_short: ""
-  executable: ""
-  makefile: ""
-  compiler:
-    family: ""
-    version: ""
-    distro: ""
-    frontend: ""
-    path: ""
-  dependencies:
-    libraries:
-      - name: ""
-        version: ""
-        include: ""
-        lib: ""
-    data:
-      - name: ""
-        generator: ""
-        settings: ""
-        file: ""
-        note: ""
-
-CQL3D-FIDASIM-preprocessor:
-  executed: false
-  repo: ""
-  branch: ""
-  commit: ""
-  commit_short: ""
-  package: ""
-  RequirementsFile: ""
-
-COUPLING:
-  executed: false
-  iterations_planned: 0
-  iterations_completed: 0
-  simulated_time_ms: 0
-  wall_time_s: 0
+  execution:
+    iterations_planned: 600
+    iterations_completed: 600
+    simulated_time_ms: 1200
+    wall_time_requested_s: null
+    wall_time_actual_s: null
 
 SYSTEM:
   host:
-    machine: ""
-    hostname: ""
+    machine: "Tanooki"
+    hostname: "Tanooki"
   OS:
-    name: ""
-    distribution: ""
-    version: ""
-    kernel: ""
-    architecture: ""
+    name: "linux"
+    distribution: "Ubuntu"
+    version: "22.04.5 LTS"
+    kernel: "6.8.0-79-generic"
+    architecture: "x86_64"
+
+ENVIRONMENT:
+  variables:
+    FIDASIM_DIR: "/home/jfcm/Repos/FIDASIM"
+    CQL3DM_DIR: "/home/jfcm/Repos/CQL3DM/src"
+    CQL3D_DIR: null
+    PREPROCESSOR_DIR: "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor"
+    PGPLOT_DIR: null
+    FORGE_DIR: "/home/jfcm/linaro/forge/24.0.2/bin"
+  python:
+    version: 3.12.2
+    path: "/home/jfcm/miniconda3/envs/FIDASIM_env/bin/python"
+    requirements: "$PREPROCESSOR_DIR/Step_0_create_environment/environment.yml"
+  nersc_modules:
+    system:
+      - craype-x86-milan
+      - libfabric/1.22.0
+      - craype-network-ofi
+      - xpmem/2.9.7-1.1_20250411150514__g191b5f8bea4c
+      - gcc-native/13.2
+      - perftools-base/24.07.0
+      - cpe/24.07
+      - cudatoolkit/12.4
+      - craype-accel-nvidia80
+      - gpu/1.0
+      - sqs/2.0
+      - darshan/default
+      - craype/2.7.32
+      - cray-dsmml/0.3.0
+      - cray-mpich/8.1.30
+      - cray-libsci/24.07.0
+    user:
+    - forge/24.1.3
+    - conda/Miniforge3-24.7.1-0
+    - PrgEnv-gnu/8.5.0
+    - cray-hdf5/1.14.3.1
+    - cray-netcdf/4.9.0.13
+
+CQL3DM:
+  executed: true
+  repo: "https://github.com/canesesmarjf/local_cql3dm.git"
+  branch: "backup_before_update13"
+  commit: "0c8eda3d30ee7d3f6b646e026a351be4f96caaf0"
+  commit_short: "0c8eda3"
+  executable: "/home/jfcm/Repos/CQL3DM/src/xcql3dm_mpi.gfortran64"
+  makefile: "/home/jfcm/Repos/CQL3DM/src/makefile_mpi.gfortran64.Ubuntu_Caneses.1"
+  compiler:
+    family: "GNU Fortran"
+    version:  "9.5.0"
+    distro: "Ubuntu 9.5.0-1ubuntu1~22.04"
+    frontend: "gfortran"
+    path: "/usr/bin/gfortran"
+  dependencies:
+    libraries:
+      - name: "PGPLOT"
+        version: "5.2.2"
+        include: "/usr/include"
+        lib: "/usr/lib"
+      - name: "NETCDF"
+        version: "4.8.1"
+        include: "/usr/include"
+        lib: "/usr/lib/x86_64-linux-gnu"
+    data:
+      - name: "ADAS_stopping_rates"
+        generator: "ADAS database"
+        settings: null
+        file: "/home/jfcm/Repos/CQL3DM/src/adas_dir/data/adas/*.dat"
+        note: "Effective stopping rates used for NFREYA internal NBI module"
+
+FIDASIM:
+  executed: true
+  repo: "https://github.com/D3DEnergetic/FIDASIM.git"
+  branch: "jfcm/mirror_equilib"
+  commit: "e6e1cddd9fff709ae65df1f6bd98eefaa189978e"
+  commit_short: "e6e1cddd"
+  executable: "/home/jfcm/Repos/FIDASIM/fidasim"
+  makefile: "/home/jfcm/Repos/FIDASIM/makefile"
+  compiler:
+    family: "GNU Fortran"
+    version:  "9.5.0"
+    distro: "Ubuntu 9.5.0-1ubuntu1~22.04"
+    frontend: "gfortran"
+    path: "/usr/bin/gfortran"
+  dependencies:
+    libraries:
+      - name: "HDF5"
+        version: "1.8.16"
+        include: "/home/jfcm/Repos/FIDASIM/deps/hdf5/include"
+        lib: "/home/jfcm/Repos/FIDASIM/deps/hdf5/lib"
+    data:
+      - name: "atomic_tables"
+        generator: "/home/jfcm/Repos/FIDASIM/tables/atomic_tables.f90"
+        settings: "./table_settings.dat"
+        file: "atomic_tables_BEAM_HHFW.h5"
+        note: "Recomputed atomic tables to include energies and temperatures up to 1MeV for HHFW"
+
+CQL3D-FIDASIM-preprocessor:
+  executed: true
+  repo: "https://github.com/canesesmarjf/CQL3D-FIDASIM-preprocessor.git"
+  branch: "master"
+  commit: "f1fb79b0b603f4f02e720d36cec27184532e9166"
+  commit_short: "f1fb79b"
+  package: "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor/cql3d_to_fidasim_preprocessor/"
+  requirements: "$PREPROCESSOR_DIR/Step_0_create_environment/environment.yml"
+  note: "Forced preprocessor to use atomic data from run_dir, see preprocessor.py, construct_inputs"
 
 MPI:
-  implementation: ""
-  version: ""
-  launcher: ""
-  launcher_path: ""
+  implementation: "openmpi"
+  version: "1.10.3"
+  launcher: "mpirun"
+  launcher_path: "/usr/local/PICOS/openmpi/1.10.3/bin/mpirun"
 
 SLURM:
-  executed: false
-  nodes: 0
-  tasks_total: 0
-  queue: ""
-  constraint: ""
-  account: ""
-  job_name: ""
-  job_id: null
-  wall_time_requested: ""
-  cpu_bind: ""
+  used: false
+  config:
+    nodes: null # 1
+    tasks_total: null # 16
+    queue: null # "regular", "debug", etc
+    constraint: null # "cpu", "gpu"
+    account: null
+    job_name: null
+    job_id: null
+    wall_time_requested: null # "06:00:00"
+    cpu_bind: null # "cores"
 
 PARALLEL:
   openMP:
+    requested_threads: 14
+    actual_threads: 14
     OMP_PLACES: null
     OMP_PROC_BIND: null
   MPI_groups:
-    num_groups: 1
+    requested_ranks: 20
+    actual_ranks: 20
     groups:
-      - rank_range: ""
+      - rank_range: "0-19"
         cpus_per_task: null
-        OMP_NUM_THREADS: null

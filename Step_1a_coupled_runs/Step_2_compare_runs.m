@@ -10,19 +10,21 @@ save_figure = 0;
 output_dir = "Step_2_output/";
 
 addpath(genpath("./matlab_postprocessing/"));
-
-input_dir{1} = "./WHAM_test/test_1/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
-input_dir{2} = "./WHAM_test/test_2/" ; % FIDASIM beam, FREYA sink , nstop=50,
-input_dir{3} = "./WHAM_test/test_3/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
+rootpat = "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor_backup/Step_1a_coupled_runs";
+input_dir{1} = rootpat + "/WHAM_test/test_1/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
+input_dir{2} = rootpat + "/WHAM_test/test_2/" ; % FIDASIM beam, FREYA sink , nstop=50,
+input_dir{3} = rootpat + "/WHAM_test/test_3/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
 input_dir{4} = "/home/jfcm/Documents/compX/RFSCIDAC/FIDASIM_work/Step_17_BEAM_EQDSK/2025_09_10/"; % NFREYA beam, NFREYA sink, nstop=600
 % input_dir{5} = "./WHAM_test/test_4/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
-input_dir{5} = "./WHAM_test/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
+input_dir{5} = rootpat + "/WHAM_test/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
+input_dir{6} = "~/CQL3D_coupled_project/run_001/BEAM_004/" ; % FIDASIM beam, FIDASIM sink, nstop=50,
 
 legend_text{1} = "FIDA beam, FIDA sink (DCX,HALOx5)";
 legend_text{2} = "FIDA beam, FREYA sink";
 legend_text{3} = "FIDA beam, FIDA sink (DCX)";
 legend_text{4} = "FREYA beam, FREYA sink";
 legend_text{5} = "FIDA beam, FIDA sink (DCX,HALOx4)";
+legend_text{6} = "FIDA beam, FIDA sink (DCX,HALOx4,PUFF)";
 
 opts.eion_max = 100; % [keV]
 opts.ne_max = 1e14; % [cm^-3]
@@ -36,6 +38,8 @@ filename_nc{2} = 'iaea2.2.nc';
 filename_nc{3} = 'iaea2.2.nc';
 filename_nc{4} = 'iaea.2.2.nc';
 filename_nc{5} = 'iaea2.2.nc';
+% filename_nc{6} = 'iaea2.2.nc';
+filename_nc{6} = 'iaea5.1f.nc';
 
 for ii = 1:numel(input_dir)
     pathname = input_dir{ii} + filename_nc{ii};
@@ -68,7 +72,7 @@ end
 
 % DCX model:
 % ======================
-case_rng = [1,2,3,4,5]; 
+case_rng = [1,2,3,4,5,5+1]; 
 hfig(1) = plot_basic_variables(nc,legend_text,case_rng,opts);
 
 if save_figure

@@ -565,6 +565,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         # -------------------------------------
 
         # Read nc file into dict:
+        print('out: ' + config['f4d_ion_file_name'])
         f4d_nc = read_ncdf(config['f4d_ion_file_name'])
 
         # Read distribution function from nc file, dimensions: [theta,v, Z, R]
@@ -763,7 +764,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         plt.title(r"$log_{10}(f_{ion})$ $[p/cm^{3} (s/cm)^{3} v_{norm}^{3}]$, R = 0, Z = 0")
         plt.xlabel(r"$v_{\parallel}/c$",fontsize=14)
         plt.ylabel(r"$v_{\perp}/c$",fontsize=14)
-        plt.savefig(config['output_path'] + 'f4d_ion_vpar_vper.png')
+        plt.savefig(config['figures_dir'] + 'f4d_ion_vpar_vper.png')
 
         # Plot #2: Compare input and interpolated f4d:
         # ============================================
@@ -794,7 +795,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         fig.colorbar(h_cntr, ax=ax2)
 
         # Save figure:
-        fig.savefig(config['output_path'] + 'f4d_ion_energy_pitch.png')
+        fig.savefig(config['figures_dir'] + 'f4d_ion_energy_pitch.png')
 
         # Plot #3: Compare ion density from integral:
         # ===========================================
@@ -830,7 +831,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         ax2.set_title('ne, from f4d file')
 
         # Save figure:
-        fig.savefig(config['output_path'] + 'density_f4d_comparison.png')
+        fig.savefig(config['figures_dir'] + 'density_f4d_comparison.png')
 
         # Plot #4: Directly compare Z profiles:
         # ===================================
@@ -858,7 +859,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         ax1.legend()
 
         # Save figure:
-        fig.savefig(config['output_path'] + 'density_zprof_f4d_comparison.png')
+        fig.savefig(config['figures_dir'] + 'density_zprof_f4d_comparison.png')
 
         # Plot #5: Directly compare R profiles:
         # ===================================
@@ -887,7 +888,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         ax1.legend()
 
         # Save figure:
-        fig.savefig(config['output_path'] + 'density_rprof_f4d_comparison.png')
+        fig.savefig(config['figures_dir'] + 'density_rprof_f4d_comparison.png')
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -978,7 +979,9 @@ def construct_inputs(config, nbi):
                     "calc_birth":calc_birth, "calc_fida_wght":calc_fida_wght,"calc_npa_wght":calc_npa_wght,
                     "calc_pfida":calc_pfida, "calc_pnpa":calc_pnpa,
                     # "result_dir":output_path, "tables_file":fida_dir+'/tables/atomic_tables.h5'}
-                    "result_dir": output_path, "tables_file": fida_dir + '/tables/atomic_tables_BEAM.h5'}
+                    # "result_dir": output_path, "tables_file": fida_dir + '/tables/atomic_tables_BEAM.h5'}
+                    "result_dir": output_path, "tables_file": config['atomic_tables'],
+                    "verbose": config['verbose']}
 
     # Define beam grid:
     basic_bgrid = {}
@@ -1186,7 +1189,7 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
 
     # >>> [JFCM, 2025_09_15] >>>
     # TODO: add this to fida_config.nml
-    inputs['verbose'] = 0
+    # inputs['verbose'] = 0
     # <<< [JFCM, 2025-09-15] <<<
 
     # Produce input files for FIDASIM:
@@ -1204,18 +1207,92 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     input_file = inputs['result_dir'].rstrip(ps) + ps + inputs['runid'] + '_inputs.dat'
     write_fidasim_input_namelist(input_file,inputs)
 
+import os
+
+import os
+
+def resolve_path(filename_or_path, present_dir=None, fallback_dir=None):
+    """
+    Resolve a file path with fallback search.
+
+    Parameters
+    ----------
+    filename_or_path : str
+        Either a filename, relative path, or absolute path.
+    present_dir : str, optional
+        Directory to search when relative paths are given.
+        Defaults to the current working directory.
+    fallback_dir : str, optional
+        Directory to search if a bare filename isn't found in present_dir.
+
+    Returns
+    -------
+    str
+        Absolute path to the file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the file cannot be found in any of the candidate locations.
+    """
+    # Expand ~ and env vars
+    path = os.path.expanduser(os.path.expandvars(filename_or_path))
+
+    # Default present_dir to current working directory
+    if present_dir is None:
+        present_dir = os.getcwd()
+
+    # Case 1: Absolute path
+    if os.path.isabs(path):
+        if os.path.exists(path):
+            return os.path.abspath(path)
+        raise FileNotFoundError(f"File not found: {path}")
+
+    # Case 2: Relative path (contains slashes like ./ or ../ or subdir/file)
+    if os.sep in path:
+        abs_path = os.path.abspath(os.path.join(present_dir, path))
+        if os.path.exists(abs_path):
+            return abs_path
+        raise FileNotFoundError(f"File not found: {abs_path}")
+
+    # Case 3: Bare filename (no slashes)
+    candidate = os.path.abspath(os.path.join(present_dir, path))
+    if os.path.exists(candidate):
+        return candidate
+
+    if fallback_dir:
+        candidate = os.path.abspath(os.path.join(fallback_dir, path))
+        if os.path.exists(candidate):
+            return candidate
+
+    raise FileNotFoundError(
+        f"File '{filename_or_path}' not found in present_dir or fallback."
+    )
+
 def construct_preprocessor_config(fida_run_dir, cql_run_dir):
 
     # Check if fidasim run configuration file exists:
     fida_run_id = os.path.basename(os.path.normpath(fida_run_dir))
-    fida_config_file = fida_run_dir.rstrip('/') + "/" + fida_run_id + "_config.nml"
+
+    # >>> [JFCM, 2025-09-28] >>>
+    # Search for "config_fida"
+    # fida_config_file = fida_run_dir.rstrip('/') + "/" + fida_run_id + "_config.nml"
+    fida_config_file = fida_run_dir.rstrip('/') + "/" + "config_fida.nml"
+    # <<< JFCM, 2025-09-28] <<<
+
     if not os.path.exists(fida_config_file):
         print(f"Error: The fidasim run configuration file '{fida_config_file}' does not exist.")
         sys.exit(1)
 
     # Check if cql run configuration file exists:
     cql_run_id = os.path.basename(os.path.normpath(cql_run_dir))
-    cql_config_file = cql_run_dir.rstrip('/') + "/" + cql_run_id + "_cql_config.nml"
+
+    # >>> [JFCM, 2025-09-28] >>>
+    # Search for "config_cql"
+    # cql_config_file = cql_run_dir.rstrip('/') + "/" + cql_run_id + "_cql_config.nml"
+    cql_config_file = cql_run_dir.rstrip('/') + "/" + "config_cql.nml"
+    # <<< [JFCM, 2025-09-28] <<<
+
     if not os.path.exists(cql_config_file):
         print(f"Error: The cql3d run configuration file '{cql_config_file}' does not exist.")
         sys.exit(1)
@@ -1232,6 +1309,12 @@ def construct_preprocessor_config(fida_run_dir, cql_run_dir):
     # Metadata for fidasim run:
     config["runid"] = fida_run_id
     config["comment"] = fida_nml['fidasim_run_info']['comment']
+
+    # Verbose:
+    if fida_nml['fidasim_run_info'].get('verbose') is None:
+        config['verbose'] = 1
+    else:
+        config['verbose'] = fida_nml['fidasim_run_info']['verbose']
 
     # R-Z Interpolation grid:
     sub_nml = fida_nml['rz_interpolation_grid']
@@ -1290,9 +1373,29 @@ def construct_preprocessor_config(fida_run_dir, cql_run_dir):
 
     # Define path to output directory:
     # (This is where you want the FIDASIM HDF5 files to be written to)
-    config['output_path'] = fida_nml['preprocessor_output']['output_dir']
-    if not config['output_path']:
+    target_dir = fida_nml['preprocessor_output']['output_dir']
+    if target_dir is None:
         config['output_path'] = fida_run_dir
+    else:
+        config['output_path'] = os.path.join(fida_run_dir, target_dir)
+
+    # Define path where python output figures are stored:
+    # target_dir = fida_nml['preprocessor_output']['figures_dir']
+    # if target_dir is None:
+    #     config['figures_dir'] = fida_run_dir
+    # else:
+    #     config['figures_dir'] = os.path.join(fida_run_dir, target_dir)
+    #     os.makedirs(config['figures_dir'], exist_ok=True)
+    if 'figures_dir' not in fida_nml['preprocessor_output']:
+        # Key missing → default
+        config['figures_dir'] = fida_run_dir
+    else:
+        target_dir = fida_nml['preprocessor_output']['figures_dir']
+        if target_dir is None:
+            config['figures_dir'] = fida_run_dir
+        else:
+            config['figures_dir'] = os.path.join(fida_run_dir, target_dir)
+            os.makedirs(config['figures_dir'], exist_ok=True)
 
     # Beam physics switches:
     sub_nml = fida_nml['beam_physics_switches']
@@ -1300,10 +1403,16 @@ def construct_preprocessor_config(fida_run_dir, cql_run_dir):
         config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
     if "calc_sink" in sub_nml:
         config['calc_sink'] = sub_nml['calc_sink']
-
     config['calc_birth'] = sub_nml['calc_birth']
     config['calc_dcx'] = sub_nml['calc_dcx']
     config['calc_halo'] = sub_nml['calc_halo']
+
+    # Define atomic table to use:
+    default_dir = os.getenv('FIDASIM_DIR') + "/tables/"
+    if not sub_nml.get('atomic_tables'):
+        config['atomic_tables'] = default_dir + "atomic_tables.h5"
+    else:
+        config['atomic_tables'] = resolve_path(sub_nml['atomic_tables'],present_dir=fida_run_dir,fallback_dir=default_dir)
 
     # Define number of Monte-Carlo particles:
     sub_nml = fida_nml['monte_carlo_particles']
@@ -1489,7 +1598,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Mask')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'mask.png')
+    plt.savefig(config["figures_dir"] + 'mask.png')
 
     # Plot density profile:
     fig = plt.figure(6)
@@ -1502,7 +1611,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Electron density')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'dene.png')
+    plt.savefig(config["figures_dir"] + 'dene.png')
 
     # Plot electron temperature profile:
     fig = plt.figure(7)
@@ -1515,7 +1624,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Electron temperature [keV]')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'te.png')
+    plt.savefig(config["figures_dir"] + 'te.png')
 
     # Plot ion temperature profile:
     fig = plt.figure(8)
@@ -1528,7 +1637,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Ion temperature [keV]')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'ti.png')
+    plt.savefig(config["figures_dir"] + 'ti.png')
 
     # Plot neutral density profile:
     fig = plt.figure(9)
@@ -1541,7 +1650,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Neutral density')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'denn.png')
+    plt.savefig(config["figures_dir"] + 'denn.png')
 
     # Plot product of neutral and electron density profile:
     fig = plt.figure(10)
@@ -1554,7 +1663,7 @@ def plot_plasma(config,grid,rho,plasma):
     plt.xlabel('R [cm]')
     plt.title('Product of neutral and electron density')
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(config["output_path"] + 'denn_x_dene.png')
+    plt.savefig(config["figures_dir"] + 'denn_x_dene.png')
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale.'''
@@ -1738,7 +1847,7 @@ def plot_nbi(config,grid,rho,nbi):
     # Save image:
     ax.set_title('NBI geometry')
     fig.set_size_inches(9, 9)  # Width, Height in inches
-    fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_isometric.png')
 
     # Set the view:
     elev = +90
@@ -1747,7 +1856,7 @@ def plot_nbi(config,grid,rho,nbi):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_UV.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_UV.png')
 
     # Set the view:
     elev = +0
@@ -1756,7 +1865,7 @@ def plot_nbi(config,grid,rho,nbi):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_UW.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_UW.png')
 
     # Set the view:
     elev = +0
@@ -1765,7 +1874,7 @@ def plot_nbi(config,grid,rho,nbi):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_VW.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_VW.png')
 
     return fig,ax
 
@@ -1859,7 +1968,7 @@ def plot_beam_grid(fig,ax,config):
     # Save image:
     ax.set_title('NBI + beam grid geometry')
     fig.set_size_inches(9, 9)  # Width, Height in inches
-    fig.savefig(config["output_path"] + 'NBI_geometry_isometric.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_isometric.png')
 
     # Set the view:
     elev = +90
@@ -1868,7 +1977,7 @@ def plot_beam_grid(fig,ax,config):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_UV.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_UV.png')
 
     # Set the view:
     elev = +0
@@ -1877,7 +1986,7 @@ def plot_beam_grid(fig,ax,config):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_UW.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_UW.png')
 
     # Set the view:
     elev = +0
@@ -1886,12 +1995,12 @@ def plot_beam_grid(fig,ax,config):
     plt.show()
 
     # Save image:
-    fig.savefig(config["output_path"] + 'NBI_geometry_VW.png')
+    fig.savefig(config["figures_dir"] + 'NBI_geometry_VW.png')
 
 def plot_fields(config,grid,rho, equil):
     print("         Plotting field related data:")
 
-    output_path = config["output_path"]
+    figures_dir = config["figures_dir"]
 
     fig = plt.figure(1)
     plt.contourf(grid["r2d"], grid["z2d"], equil["bz"])
@@ -1900,7 +2009,7 @@ def plot_fields(config,grid,rho, equil):
     plt.ylabel("Z [cm]")
     plt.xlabel("R [cm]")
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(output_path + 'Bz_2D.png')
+    plt.savefig(figures_dir + 'Bz_2D.png')
     # plt.show()
 
     fig = plt.figure(2)
@@ -1910,7 +2019,7 @@ def plot_fields(config,grid,rho, equil):
     plt.ylabel("Z [cm]")
     plt.xlabel("R [cm]")
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(output_path + 'Br_2D.png')
+    plt.savefig(figures_dir + 'Br_2D.png')
     # plt.show()
 
     fig = plt.figure(3)
@@ -1924,7 +2033,7 @@ def plot_fields(config,grid,rho, equil):
     plt.ylabel("Z [cm]")
     plt.xlabel("R [cm]")
     fig.set_size_inches(4, 6)  # Width, Height in inches
-    plt.savefig(output_path + 'flux_surfaces.png')
+    plt.savefig(figures_dir + 'flux_surfaces.png')
     # plt.show()
 
     # fig = plt.figure(4)

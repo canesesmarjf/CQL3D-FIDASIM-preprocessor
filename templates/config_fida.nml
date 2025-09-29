@@ -1,9 +1,11 @@
 &fidasim_run_info
   comment = "BEAM case. Basic run with birth points only. Omitting non-thermal calculations and sinks"
+  verbose = 0 ! Default 1
 /
 
 &preprocessor_output
-  output_dir = "" ! Leave empty to direct output to where this config file is located
+  output_dir = "" ! Leave empty or ./ to direct output to where this config file is located
+  figures_dir = "./figures/" ! Leave empty or ./ to direct output to where this config file is located
 /
 
 &cql3d_input_files
@@ -36,6 +38,7 @@
   calc_birth = 1
   calc_dcx = 0
   calc_halo = 0
+  atomic_tables = "./atomic_tables/atomic_tables_BEAM_HHFW.h5" ! Leave empty to select default FIDASIM location
 /
 
 &monte_carlo_particles

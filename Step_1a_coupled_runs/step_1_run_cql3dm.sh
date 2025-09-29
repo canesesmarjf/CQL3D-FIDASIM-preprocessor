@@ -7,10 +7,7 @@
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Define run directory:
-# RUN_ID="WHAM_no_f4d"
 RUN_ID="WHAM_test"
-#RUN_ID="WHAM_100keV"
-#RUN_ID="cx_recapture/case_5a"
 #RUN_ID="WHAM_Bob_IAEA_wall"
 
 # Number of processors:
@@ -25,6 +22,8 @@ PREPROCESSOR_PLOT=1
 
 # CQL3D executable:
 #EXECUTABLE=xcql3d_mpi.perl
+#export CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2024_02_27/src'
+export CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2025_09_20/src'
 EXECUTABLE=xcql3dm_mpi.gfortran64
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

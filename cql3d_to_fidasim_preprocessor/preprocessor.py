@@ -1031,6 +1031,8 @@ def construct_inputs(config, nbi):
         inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
     if "calc_sink" in config:
         inputs["calc_sink"] = config["calc_sink"]
+    if "enable_halo" in config:
+        inputs["enable_halo"] = config["enable_halo"]
 
     # Metadata on simulation run:
     inputs["comment"] = config["comment"]
@@ -1406,6 +1408,7 @@ def construct_preprocessor_config(fida_run_dir, cql_run_dir):
     config['calc_birth'] = sub_nml['calc_birth']
     config['calc_dcx'] = sub_nml['calc_dcx']
     config['calc_halo'] = sub_nml['calc_halo']
+    config['enable_halo'] = sub_nml['enable_halo']
 
     # Define atomic table to use:
     default_dir = os.getenv('FIDASIM_DIR') + "/tables/"
@@ -1514,6 +1517,8 @@ def write_fidasim_input_namelist(filename, inputs):
             f.write("enable_nonthermal_calc = {:d} !! Enable the use of f4d to calculate beam deposition\n".format(inputs['enable_nonthermal_calc']))
         if "calc_sink" in inputs:
             f.write("calc_sink = {:d} !! Calculate ion sink process\n".format(inputs['calc_sink']))
+        if "enable_halo" in inputs:
+            f.write("enable_halo = {:d} !! Enable halo process\n".format(inputs['enable_halo']))
 
         f.write("\n!! Advanced Settings\n")
         f.write("seed = {:d}    !! RNG Seed. If seed is negative a random seed is used\n".format(inputs['seed']))

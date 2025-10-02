@@ -43,3 +43,4 @@ to_be_updated/
 __pycache__
 *.asv
 superseded/
+.DS_Store

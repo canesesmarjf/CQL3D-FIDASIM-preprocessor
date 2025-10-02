@@ -39,6 +39,7 @@
   calc_dcx = 0
   calc_halo = 0
   atomic_tables = "./atomic_tables/atomic_tables_BEAM_HHFW.h5" ! Leave empty to select default FIDASIM location
+  enable_halo = 1
 /
 
 &monte_carlo_particles

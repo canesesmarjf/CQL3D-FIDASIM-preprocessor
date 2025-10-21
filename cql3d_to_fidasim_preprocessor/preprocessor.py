@@ -1408,7 +1408,10 @@ def construct_preprocessor_config(fida_run_dir, cql_run_dir):
     config['calc_birth'] = sub_nml['calc_birth']
     config['calc_dcx'] = sub_nml['calc_dcx']
     config['calc_halo'] = sub_nml['calc_halo']
-    config['enable_halo'] = sub_nml['enable_halo']
+    if "enable_halo" in sub_nml:
+        config['enable_halo'] = sub_nml['enable_halo']
+    else:
+        config['enable_halo'] = 0
 
     # Define atomic table to use:
     default_dir = os.getenv('FIDASIM_DIR') + "/tables/"

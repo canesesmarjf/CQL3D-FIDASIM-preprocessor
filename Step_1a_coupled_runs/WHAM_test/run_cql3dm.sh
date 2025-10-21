@@ -6,14 +6,8 @@
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-# Define run directory:
-# RUN_ID="WHAM_no_f4d"
-#RUN_ID="WHAM_test"
-#RUN_ID="WHAM_test_freya"
-RUN_ID="WHAM_Bob_IAEA_wall"
-
 # Number of processors:
-NUM_PROCS=10 #Number of MPI processes for CQL3D
+NUM_PROCS=8 # Number of MPI processes for CQL3D
 NUM_THREADS=20 # Number of threads for FIDASIM
 
 # Record terminal output to text file:
@@ -22,11 +16,11 @@ CLI_TO_TXT=0
 # Enable plotting output from preprocessor:
 PREPROCESSOR_PLOT=1
 
-# Debugging parameters:
-DEBUG_CQL3D=1
-EXECUTABLE=xcql3dm_mpi.gfortran64_DEBUG
-#EXECUTABLE=xcql3dm_mpi.gfortran64
-FORGE_DIR=/home/jfcm/linaro/forge/24.0.2/bin
+# CQL3D executable:
+#export CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2024_02_27/src'
+export CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2025_09_20/src'
+EXECUTABLE=xcql3dm_mpi.gfortran64
+#EXECUTABLE=xcql3d_mpi.perl
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

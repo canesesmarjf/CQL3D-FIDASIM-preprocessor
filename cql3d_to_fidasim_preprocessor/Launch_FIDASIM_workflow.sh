@@ -37,9 +37,11 @@ echo ""
 
 # Setup CONDA python environment needed to run the FIDASIM-CQL3DM preprocessor:
 # Initialize Conda
-source ~/miniconda3/etc/profile.d/conda.sh
+# >>> [JFCM, 2025-10-21] >>>
+#source ~/miniconda3/etc/profile.d/conda.sh
 # Activate the Conda environment
-conda activate FIDASIM_env
+#conda activate FIDASIM_env
+# <<< [JFCM, 2025-10-21] <<<
 
 # When running FIDASIM in standalone mode, check for the following special variables:
 # FIDASIM_RUN_PREPROCESSOR

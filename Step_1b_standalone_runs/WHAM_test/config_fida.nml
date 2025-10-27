@@ -4,14 +4,15 @@
 /
 
 &preprocessor_output
-  output_dir = "" ! Leave empty or ./ to direct output to where this config file is located
-  figures_dir = "./figures/" ! Leave empty or ./ to direct output to where this config file is located
+  ! output_dir = "./outputs/" ! Leave empty or ./ to direct output config file location [DOEST NOT WORK]
+  output_dir = ""
+  figures_dir = "./figures/" ! Leave empty or ./ to direct output config file location
 /
 
 &cql3d_input_files
   eqdsk_type = 1 !(1) mirror or (2) toroidal
   plasma_from_cqlinput = 0 ! Flag to setup plasma profiles using cqlinput instead of CQL3D's nc file
-  include_f4d = 0 ! Flag to read in non-thermal ion distribution function
+  include_f4d = 1 ! Flag to read in non-thermal ion distribution function
 /
 
 &rz_interpolation_grid
@@ -48,6 +49,8 @@
   n_birth = 100e3
   n_dcx = 100e3
   n_halo = 100e3
+  reservoir_size = 100
+  save_neutral_reservoir = 0
 /
 
 &beam_grid

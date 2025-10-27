@@ -1,59 +1,44 @@
 import os
-import sys
-import argparse
 import preprocessor as pp
-
-# Get command line arguments:
-# ======================================================================================================================
-description = "This script reads CQL3D files and processes them to make FIDASIM input files"
-parser = argparse.ArgumentParser(description=description)
-
-parser.add_argument('--fida-run-dir', type=str, help="Path to the FIDASIM run directory. Ending in $run id")
-parser.add_argument('--cql-run-dir', type=str, help="Path to the CQLD3D run directory. Ending in $run_id")
-parser.add_argument('--plot', action='store_true', help="Enable plotting")  # Add the --plot flag
-parser.add_argument('--fidasim-dir', type=str, help="Directory where the FIDASIM repo is located")
-args = parser.parse_args()
 
 # USER INPUTS:
 # ============================================================
 # ======================= USER INPUTS ========================
 # ============================================================
 
-# Check if no command line arguments were provided
-if len(sys.argv) == 1:
+# Check if env vars have been set:
+if os.getenv("RUN_ID") is None:
+    print("")
+    print("==========================================================")
     print("No command line arguments provided. Using internal values.")
+    print("==========================================================")
+    print("")
 
     # User input:
     run_id = "WHAM_test"
-    fidasim_run_dir = "../Step_1b_standalone_runs/" + run_id
-    cql3d_run_dir   = "../Step_1b_standalone_runs/" + run_id
-
-    fidasim_run_dir = "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor/Step_1b_standalone_runs/" + run_id
-    cql3d_run_dir   = "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor/Step_1b_standalone_runs/" + run_id
-
-    args.fida_run_dir = fidasim_run_dir
-    args.cql_run_dir = cql3d_run_dir
-    args.fidasim_dir = None
-    args.plot = True
+    os.environ["RUN_ID"] = run_id
+    os.environ["RUN_DIR"] = "/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor/Step_1b_standalone_runs/" + run_id
+    os.environ["FIDASIM_DIR"] = "/home/jfcm/Repos/FIDASIM"
+    os.environ["PREPROCESSOR_PLOT_CREATE"] = "1"
+    os.environ["PREPROCESSOR_PLOT_SHOW"] = "1"
+    os.environ["PREPROCESSOR_PLOT_SAVE"] = "1"
 
 # ============================================================
 # ======================= USER INPUTS ========================
 # ============================================================
 
 # Add local FIDASIM directory:
-if (args.fidasim_dir == None):
-    args.fidasim_dir = os.getenv('FIDASIM_DIR','/home/jfcm/Repos/FIDASIM')
-pp.set_fidasim_dir(args.fidasim_dir.rstrip('/'))
+pp.set_fidasim_dir(os.getenv('FIDASIM_DIR'))
 
 # Read the configuration file which specifies how to run FIDASIM with CQL3D input files:
 # ======================================================================================================================
-fida_run_dir = args.fida_run_dir.rstrip('/') + "/"
-cql_run_dir  = args.cql_run_dir.rstrip('/') + "/"
-config = pp.construct_preprocessor_config(fida_run_dir, cql_run_dir)
+run_dir = os.getenv('RUN_DIR')
+config = pp.construct_preprocessor_config(run_dir)
 
 # Create FIDASIM input files using PREFIDA:
 # ======================================================================================================================
-pp.construct_fidasim_inputs_from_cql3d(config, args.plot)
+plot_flag = os.getenv("PREPROCESSOR_PLOT_CREATE") == "1"
+pp.construct_fidasim_inputs_from_cql3d(config, plot_flag)
 
 print("")
 print("End of script")

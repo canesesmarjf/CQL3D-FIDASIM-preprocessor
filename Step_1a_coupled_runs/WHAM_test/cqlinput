@@ -285,7 +285,7 @@
  ! tiin=1.5,1.1,.7,.4,.2,.1,
   torloss(1)='disabled',
   veclnth=1.5,
-  xfac=.6, !Not used in tandem runs.
+  xfac=.1,
   xlwr=.085,  !Will be reset in tandem runs, see ainvnorm
   xmdl=.25,   !Will be reset in tandem runs, see ainvnorm
   xpctlwr=.1, !Will be Reset in tandem runs, see ainvnorm

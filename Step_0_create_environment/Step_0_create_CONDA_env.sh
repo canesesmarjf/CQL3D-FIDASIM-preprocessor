@@ -14,6 +14,10 @@
 #
 # conda env export > environment.yml
 #
+# If you dont want to include machine specific builds use:
+#
+# conda env export --no-builds > environment_no_builds.yml
+#
 # To create a new environment using this file use the following statement:
 #
 # conda env create -f environment.yml
@@ -107,6 +111,8 @@ if conda env list | grep -q "^FIDASIM_env"; then
 else
     # Create environment from environment.yml
     conda env create -f ./environment.yml
+    # conda env create -f ./environment.yml # use no-builds requirements (See comments)
+
 fi
 
 # Optionally activate the environment if --activate was specified:

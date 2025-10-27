@@ -8,7 +8,6 @@ import scipy.constants as consts
 import h5py
 import os
 import sys
-import argparse
 import f90nml
 import warnings
 import socket
@@ -16,18 +15,10 @@ import time
 from datetime import datetime
 
 # ======================================================================================================================
-# Get command line arguments:
+# Get env vars:
 # ======================================================================================================================
-description = "This script reads CQL3D files and processes them to make FIDASIM input files"
-parser = argparse.ArgumentParser(description=description)
-parser.add_argument('--fida-run-dir', type=str, help="Directory where the FIDASIM output HDF5 files are located")
-parser.add_argument('--cql-run-dir', type=str, help="Directory where the CQL3D run files are located")
-
-args = parser.parse_args()
-
-# Input variables:
-fida_run_dir = args.fida_run_dir.rstrip('/')
-run_id = os.path.basename(os.path.normpath(fida_run_dir))
+run_dir = os.getenv('RUN_DIR')
+run_id = os.getenv('RUN_ID')
 
 # ======================================================================================================================
 # Define functions:
@@ -275,8 +266,8 @@ def main():
     # birth_data and sink_data are lists of dictionaries.
     # Each element of the list corresponds to a specific HDF5 file.
     # There can be multiple birth and sink HDF5 files produced by FIDASIM when considering multistep CX events
-    birth_data = process_source_files('birth', fida_run_dir)
-    sink_data = process_source_files('sink', fida_run_dir)
+    birth_data = process_source_files('birth', run_dir)
+    sink_data = process_source_files('sink', run_dir)
 
     print("=================================================")
     print("Writing sources and sinks into text files...")
@@ -334,20 +325,20 @@ def main():
     # Read cqlinput to get the NBI power injected:
 
     # Get cql_config:
-    cql_run_dir = args.cql_run_dir.rstrip('/')
+    # cql_run_dir = args.cql_run_dir.rstrip('/')
 
     # >>> [JFCM, 2025-09-28] >>>
     # cql_config = cql_run_dir + "/" + run_id + "_cql_config.nml"
-    cql_config = cql_run_dir + "/" "config_cql.nml"
+    # cql_config = cql_run_dir + "/" "config_cql.nml"
     # <<< [JFCM, 2025-09-28] <<<
 
-    nml = f90nml.read(cql_config)
+    # nml = f90nml.read(cql_config)
 
     # Read cqlinput:
-    cqlinput = args.cql_run_dir + "/" + nml['cql3d_files']['cqlinput']
+    # cqlinput = args.cql_run_dir + "/" + nml['cql3d_files']['cqlinput']
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        nml = f90nml.read(cqlinput)
+        nml = f90nml.read(os.path.join(run_dir,"cqlinput"))
 
     # Assign power:
     nbi_inj_power = nml['frsetup']['bptor'][0]  # [W]
@@ -492,8 +483,8 @@ x(cm)         y(cm)         z(cm)         v_x(cm/s)     v_y(cm/s)    v_z(cm/s)  
     fmt = f'% .{precision}e'
 
     # Specify the filename where you want to save the data
-    # filename = cql_run_dir + "/" + "Ion_birth_points_FIDASIM.dat"
-    filename = cql_run_dir + "/" + "ion_source_points_FIDASIM.dat"
+    # TODO: use the cqlinput file name to set the file name below
+    filename = run_dir + "/" + "ion_source_points_FIDASIM.dat"
 
     # Save the data to the file with the empty header and specified precision:
     # ======================================================================================================================

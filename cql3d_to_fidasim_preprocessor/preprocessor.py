@@ -1,7 +1,7 @@
 import sys
 import time
 import os
-import subprocess  # If subprocess calls are required in the script
+import subprocess  # use it when calling say a fortran program from python (consider f4d interpolation)
 import datetime
 import warnings
 import f90nml
@@ -65,7 +65,7 @@ def construct_interpolation_grid(config):
     return grid
 
 def construct_fields(config, grid):
-    print("     running 'construct_fields' ...")
+    print("     Running 'construct_fields' ...")
 
     file_name = config["eqdsk_file_name"]
     eqdsk_type = config["eqdsk_type"]
@@ -79,175 +79,8 @@ def construct_fields(config, grid):
 
     return fields, rho
 
-def construct_plasma(config,grid,rho,plot_flag,plasma_from_cqlinput):
-    print("     running 'construct_plasma' ...")
-
-    if plasma_from_cqlinput:
-        print("         Define profiles using cqlinput namelist ...")
-        plasma = construct_plasma_from_cqlinput(config,grid,rho)
-    else:
-        print("         Define profiles using CQL3D standard netCDF output ...")
-        plasma = construct_plasma_from_netcdf(config,grid,rho)
-
-    return plasma
-
-def construct_plasma_from_cqlinput(config,grid,rho):
-    print("         reading cqlinput")
-
-    # Read cqlinput namelist:
-    cqlinput = config["cqlinput"]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        nml = f90nml.read(cqlinput)
-
-    # Determine type of profile:
-    iprone = nml['setup']['iprone']
-    if iprone == "parabola":
-        print("         Define plasma profile using cqlinput parabolic profile")
-    elif iprone == "spline":
-        print("         Define plasma profile using cqlinput spline profile")
-        print("             Error: spline profile setup not available ...")
-        sys.exit(0)
-    else:
-        print("         Error: Cannot define plasma ...")
-        sys.exit(0)
-
-    # Species information:
-    ngen = nml['setup']['ngen']
-    nmax = nml['setup']['nmax']
-    fmass = nml['setup']['fmass']
-    kspeci = nml['setup']['kspeci']
-    bnumb = nml['setup']['bnumb']
-
-    # Charge number of main impurity species:
-    impurity_charge = config['impurity_charge']
-
-    # Number of hydrogenic thermal species/isotopes
-    nthermal = 1  # This appears to be set to 1 in the FIDASIM parameter list.
-
-    # Mass of FP'd ion species from CQL3D:
-    species_mass = np.array([fmass[0]/mass_proton_CGI])
-
-    # rho clipped for rho>1 to avoid negative numbers:
-    rho_clipped = np.clip(rho,0,1)
-
-    #  Electron density:
-    # ========================
-    # Parabolic profile:
-    dene_edge   = nml['setup']['reden'][1][1]
-    dene_center = nml['setup']['reden'][0][1]
-    npwr = nml['setup']['npwr']
-    mpwr = nml['setup']['mpwr']
-    dene = (dene_center - dene_edge)*(1.0 - rho_clipped**npwr[1])**mpwr[1] + dene_edge
-
-    # Electron temperature:
-    # ==========================
-    te_edge = nml['setup']['temp'][1][1]
-    te_center = nml['setup']['temp'][0][1]
-    te = (te_center - te_edge) * (1.0 - rho_clipped ** npwr[1]) ** mpwr[1] + te_edge
-
-    # Ion temperature:
-    # =================
-    ti_edge = nml['setup']['temp'][1][0]
-    ti_center = nml['setup']['temp'][0][0]
-    ti = (ti_center - ti_edge) * (1.0 - rho_clipped ** npwr[0]) ** mpwr[0] + ti_edge
-
-    # Effective nuclear charge:
-    # =========================
-    zeff = np.ones(dene.shape)
-
-    # Omega: plasma angular rotation:
-    # ===============================
-    omega_nc = np.zeros(dene.shape)
-
-    # Values outside LCFS:
-    # ====================
-    # These are used to define non-zero plasma parameters in the region between the LCFS and the vacuum chamber wall
-    # In the future, a better treatment of this can be done using exponential decay functions.
-    dene_LCFS = config["dene_LCFS"]
-    te_LCFS = config["te_LCFS"]
-    ti_LCFS = config["ti_LCFS"]
-    zeff_LCFS = config["zeff_LCFS"]
-    rho_LCFS = config["rho_LCFS"]
-
-    # Adjust profile values outside LCFS:
-    # ====================================
-    # Adjust the profile values in the regions beyond the CFS:
-    dene = np.where(rho > rho_LCFS, dene_LCFS, dene)
-    te = np.where(rho > rho_LCFS, te_LCFS, te)
-    ti = np.where(rho > rho_LCFS, ti_LCFS, ti)
-    zeff = np.where(rho > rho_LCFS, zeff_LCFS, zeff)
-
-    # Ion and impurity density profiles:
-    # Can "deni" be defined for multiple ion species?
-    denimp = dene * (zeff - 1) / (impurity_charge * (impurity_charge - 1))
-    deni = (dene - impurity_charge * denimp).reshape(1, grid['nr'], grid['nz'])
-    deni = np.where(deni > 0.0, deni, 0.0).astype('float64')
-
-    # Plasma rotation:
-    # Set plasma rotation to zero
-    # This may need to change in near future if ExB rotation becomes important
-    vt = np.zeros(dene.shape)
-    vr = vt
-    vz = vt
-
-    # Cold/Edge neutral density profile:
-    # TODO: compute denn as in the case with netcdf file:
-    denn = 1e8 * np.ones(dene.shape)  # Copied value used in the FIDASIM test case
-
-    # Create mask:
-    # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
-    # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
-    # We need to make the plasma region defined over a large region.
-    max_rho = 1.01
-    max_rho = 3.5
-    mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
-
-    # Assemble output dictionary:
-    plasma = {"time": 0.0, "data_source": config["cqlinput"], "mask": mask,
-              "deni": deni, "denimp": denimp, "species_mass": species_mass,
-              "nthermal": nthermal, "impurity_charge": impurity_charge,
-              "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
-              "dene": dene, "zeff": zeff, "denn": denn}
-
-    return plasma
-
-    # Some variables that will be useful:
-
-    # Profile switches:
-    # iprote = nml['setup']['iprote']
-    # iproti = nml['setup']['iproti']
-    # iprone = nml['setup']['iprone']
-    # iprozeff = nml['setup']['iprozeff']
-    # iprovphi = nml['setup']['iprovphi']
-    # ipronn = nml['setup']['ipronn']
-
-    # Species information:
-    # ngen = nml['setup']['ngen']
-    # nmax = nml['setup']['nmax']
-    # fmass = nml['setup']['fmass']
-    # kspeci = nml['setup']['kspeci']
-    # bnumb = nml['setup']['bnumb']
-
-    # Parabolic profiles:
-    # npwr = nml['setup']['npwr']
-    # mpwr = nml['setup']['mpwr']
-    # reden = nml['setup']['reden']
-    # temp = nml['setup']['temp']
-
-    # Spline profiles:
-    # njene = nml['setup']['njene']
-    # ryain = nml['setup']['ryain']
-    # enein = nml['setup']['enein']
-    # tein = nml['setup']['tein']
-    # zeffin = nml['setup']['zeffin']
-    # tiin = nml['setup']['tiin']
-
-    # iprone.eq."parabola"): The user specifies reden(k,0) (central value) and reden(k,1) (edge value
-    # nml['setup']['reden'][0] # Central value in [cm^-3]
-    # nml['setup']['reden'][1] # edge value in [cm^-3]
-
-def construct_plasma_from_netcdf(config,grid,rho):
+def construct_plasma(config,grid,rho):
+    print("     Running 'construct_plasma' ...")
     print("             reading netcdf file")
 
     # Read CQL3D standard .nc file into dict:
@@ -1180,7 +1013,8 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
 
     # Compute the plasma dict:
     # ========================
-    plasma = construct_plasma(config,grid,rho,plot_flag,config['plasma_from_cqlinput'])
+    # plasma = construct_plasma(config,grid,rho,plot_flag,config['plasma_from_cqlinput'])
+    plasma = construct_plasma(config,grid,rho)
     if plot_flag:
         plot_plasma(config,grid,rho,plasma)
 
@@ -1223,10 +1057,6 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     # ======================================================================
     input_file = os.path.join(inputs['result_dir'], inputs['runid'] + '_inputs.dat')
     write_fidasim_input_namelist(input_file,inputs)
-
-import os
-
-import os
 
 def resolve_path(filename_or_path, present_dir=None, fallback_dir=None):
     """
@@ -1341,15 +1171,17 @@ def construct_preprocessor_config(run_dir):
 
     #  TODO: need to remove this block, we no longer use plasma from cqlinput
     # Define "plasma_from_cqlinput" flag:
-    if "plasma_from_cqlinput" in fida_nml['cql3d_input_files']:
-        config["plasma_from_cqlinput"] = fida_nml['cql3d_input_files']['plasma_from_cqlinput']
-    else:
-        config["plasma_from_cqlinput"] = False
+    # if "plasma_from_cqlinput" in fida_nml['cql3d_input_files']:
+    #     config["plasma_from_cqlinput"] = fida_nml['cql3d_input_files']['plasma_from_cqlinput']
+    # else:
+    #     config["plasma_from_cqlinput"] = False
+    #
+    # # Get mnemonic.nc file:
+    # config["plasma_file_name"] = ''
+    # if config["plasma_from_cqlinput"] == False:
+    #     config["plasma_file_name"] = os.path.join(run_dir,cql_nml['setup0']['mnemonic'] + ".nc")
 
-    # Get mnemonic.nc file:
-    config["plasma_file_name"] = ''
-    if config["plasma_from_cqlinput"] == False:
-        config["plasma_file_name"] = os.path.join(run_dir,cql_nml['setup0']['mnemonic'] + ".nc")
+    config["plasma_file_name"] = os.path.join(run_dir, cql_nml['setup0']['mnemonic'] + ".nc")
 
     # Define "include_f4d" flag:
     config["include_f4d"] = False
@@ -1373,6 +1205,7 @@ def construct_preprocessor_config(run_dir):
     config["zeff_LCFS"] = sub_nml['zeff_LCFS']
 
     # Define path to output directory:
+    # TODO: this option does not work yet. no use until fixed
     # (This is where you want the FIDASIM HDF5 files to be written to)
     target_dir = fida_nml['preprocessor_output']['output_dir']
     if target_dir is None:
@@ -1394,6 +1227,9 @@ def construct_preprocessor_config(run_dir):
 
     # Beam physics switches:
     sub_nml = fida_nml['beam_physics_switches']
+    # TODO: need to change name of "enable_nonthermal_calc" as we are no longer performing nonthermal beam deposition
+    # TODO: we are still performing sampling of non-thermal ion PDF for CX.
+    # TODO: maybe rename it to "sample_nonthermal_distribution"
     if "enable_nonthermal_calc" in sub_nml:
         config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
     if "calc_sink" in sub_nml:
@@ -1656,36 +1492,6 @@ def plot_plasma(config,grid,rho,plasma):
 
     if os.getenv("PREPROCESSOR_PLOT_SAVE") == "1":
         plt.savefig(config["figures_dir"] + 'ti.png')
-
-    # Plot neutral density profile:
-    fig = plt.figure(9)
-    plt.contourf(grid['r2d'], grid['z2d'], plasma['denn'] * plasma['mask'])
-    plt.colorbar()
-    levels = np.linspace(0.01, 1, 10)
-    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
-    plt.clabel(contour_plot, inline=True, fontsize=8)
-    # plt.xlim([0,25])
-    plt.xlabel('R [cm]')
-    plt.title('Neutral density')
-    fig.set_size_inches(4, 6)  # Width, Height in inches
-
-    if os.getenv("PREPROCESSOR_PLOT_SAVE") == "1":
-        plt.savefig(config["figures_dir"] + 'denn.png')
-
-    # Plot product of neutral and electron density profile:
-    fig = plt.figure(10)
-    plt.contourf(grid['r2d'], grid['z2d'], plasma['denn'] * plasma['dene'] * plasma['mask'])
-    plt.colorbar()
-    levels = np.linspace(0.01, 1, 10)
-    contour_plot = plt.contour(grid['r2d'], grid['z2d'], rho, levels=levels, colors='red', linewidths=1.0)
-    plt.clabel(contour_plot, inline=True, fontsize=8)
-    # plt.xlim([0,25])
-    plt.xlabel('R [cm]')
-    plt.title('Product of neutral and electron density')
-    fig.set_size_inches(4, 6)  # Width, Height in inches
-
-    if os.getenv("PREPROCESSOR_PLOT_SAVE") == "1":
-        plt.savefig(config["figures_dir"] + 'denn_x_dene.png')
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale.'''

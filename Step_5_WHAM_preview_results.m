@@ -103,7 +103,12 @@ switch scenario
         run_id = "BEAM_003";
         scenario = "";
         fidasim_run_dir  = "~/CQL3D_coupled_project/run_001/" + run_id + "/";
-        cql3d_run_dir = "~/CQL3D_coupled_project/run_001/" + run_id + "/";                  
+        cql3d_run_dir = "~/CQL3D_coupled_project/run_001/" + run_id + "/"; 
+    case 16
+        run_id = "BEAM_006e";
+        scenario = "";
+        fidasim_run_dir  = "~/CQL3D_coupled_project/run_002/" + run_id + "/";
+        cql3d_run_dir = "~/CQL3D_coupled_project/run_002/" + run_id + "/";          
 end
 
 %% Get data:
@@ -1361,7 +1366,7 @@ disp(" ")
 disp(" Neutral densities: ")
 
 % Diagnostics:
-if 0
+infoif 0
     disp({info.Groups.Name})
     disp({info.Groups(2).Datasets.Name})
     disp(info.Groups(2).Datasets(1).Dataspace)

@@ -1,5 +1,4 @@
 import os
-import preprocessor as pp
 
 # USER INPUTS:
 # ============================================================
@@ -28,6 +27,7 @@ if os.getenv("RUN_ID") is None:
 # ============================================================
 
 # Add local FIDASIM directory:
+import preprocessor as pp
 pp.set_fidasim_dir(os.getenv('FIDASIM_DIR'))
 
 # Read the configuration file which specifies how to run FIDASIM with CQL3D input files:

@@ -201,27 +201,20 @@ def construct_plasma(config,grid,rho):
     vz = vt
 
     # Cold/Edge neutral density profile:
+    # TODO: consider removing this as we dont needed it we calculate the SOL neutrals with FIDASIM
     denn_max = 1e10 # [cm^-3]
     denn_min = 1e6 # [cm^-3]
     drho_neutral = 0.2
     denn = denn_min + (denn_max-denn_min)*np.exp((rho-rho_LCFS)/drho_neutral)
     denn = np.where(rho<rho_LCFS,denn,denn_max).astype('float64')
 
-    # Create mask:
-    # FIDASIM requires a mask to define regions where the plasma is defined (mask == 1)
-    # However, for tracking neutrals outside the LFCS and possibly all the way to the vacuum chamber wall
-    # We need to make the plasma region defined over a large region.
-    max_rho = 5.0
-    max_rho = 1.5
-    mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
+    # Create mask with valid regions up to rho_max:
+    # This is needed to restrict the region in space where the neutral reservoirs can be allocated
+    # This was done to optimize the use of memoery when we expand the beam grid to include the vacuum vessel
+    rho_max = config["rho_max"]
+    mask = np.where(rho <= rho_max, np.int64(1), np.int64(0))
 
     # Assemble output dictionary:
-    # plasma = {"time": nc_data['time'][-1], "data_source": config["plasma_file_name"], "mask": mask,
-    #           "deni": deni, "denimp": denimp, "species_mass": species_mass,
-    #           "nthermal": nthermal, "impurity_charge": impurity_charge,
-    #           "te": te, "ti": ti, "vr": vr, "vt": vt, "vz": vz,
-    #           "dene": dene, "zeff": zeff, "denn": denn, "profiles": nc_data}
-
     plasma = {"time": nc_data['time'][valid_idx], "data_source": config["plasma_file_name"], "mask": mask,
               "deni": deni, "denimp": denimp, "species_mass": species_mass,
               "nthermal": nthermal, "impurity_charge": impurity_charge,
@@ -489,15 +482,15 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         # ----------------------------------------------------------------------------------
 
         # Create mask: (for regions outside LCFS)
-        max_rho = 1
-        mask = np.where(rho <= max_rho, np.int64(1), np.int64(0))
+        rho_max = 1
+        mask = np.where(rho <= rho_max, np.int64(1), np.int64(0))
 
         # Reshape fbm_nc to bring the R and Z dimensions to the front: [R,Z,E,P]
         fbm_reshaped = fbm_interpolated.transpose(2, 3, 0, 1)
 
         # Combine E and P coordinates into a single dimension: [R,Z,E*P]
         # For every location (R,Z) there will be 1D vector of f4d values with E*P elements
-        fbm_reshaped = fbm_reshaped.reshape(10, 121, -1)
+        fbm_reshaped = fbm_reshaped.reshape(r_nc.shape[0],z_nc.shape[0], -1)
 
         # Grid associated with fbm_reshaped:
         # Define it with a tuple with two elements: (r_nc, z_nc) where each element in the tuple is a np.array
@@ -657,17 +650,18 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         plt.subplots_adjust(wspace=0.5)  # Adjust the width space between subplots
 
         # Density from source file:
-        cont1 = ax1.contourf(r_src,z_src,dene_src,vmin=0,vmax=1.6e13)
-        ax1.set_xlim([0,15])
-        ax1.set_ylim([0,200])
+        max_dene = 1.2*dene_src.max()
+        cont1 = ax1.contourf(r_src,z_src,dene_src,vmin=0,vmax=max_dene)
+        ax1.set_xlim([0,r_src.max()])
+        ax1.set_ylim([0,z_src.max()])
         fig.colorbar(cont1,ax=ax1)
         ax1.set_title('ne, from src file')
 
         # Density from f4d file:
         denf_clipped = np.clip(denf, 0, 1.6e13)
-        cont2 = ax2.contourf(r_grid,z_grid,denf,vmin=0,vmax=1.6e13)
-        ax2.set_xlim([0,15])
-        ax2.set_ylim([0,200])
+        cont2 = ax2.contourf(r_grid,z_grid,denf,vmin=0,vmax=max_dene)
+        ax2.set_xlim([0,r_src.max()])
+        ax2.set_ylim([0,z_src.max()])
         fig.colorbar(cont2,ax=ax2)
         ax2.set_title('ne, from f4d file')
 
@@ -684,7 +678,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
 
         ax1.plot(z_grid[0, :], denf[0, :],color='red',lw=4, label='f4d')
         ax1.plot(z_src[0,:],dene_src[0,:],color='black',lw=2, label='src')
-        ax1.set_xlim([0,200])
+        ax1.set_xlim([0,z_src.max()])
         ax1.set_ylabel("density [cm^{-3}]")
         ax1.set_xlabel("Z [cm]")
         ax1.set_yscale('log')
@@ -693,7 +687,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
 
         ax2.plot(z_grid[0, :], denf[0, :],color='red',lw=4, label='f4d')
         ax2.plot(z_src[0,:],dene_src[0,:],color='black',lw=2, label='src')
-        ax2.set_xlim([0,200])
+        ax2.set_xlim([0,z_src.max()])
         ax2.set_ylabel("density [cm^{-3}]")
         ax2.set_xlabel("Z [cm]")
         ax2.set_yscale('linear')
@@ -714,7 +708,7 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
         iz = np.int64(np.round(denf.shape[1]/2))
         ax1.plot(r_grid[:, iz], denf[:,iz], color='red', lw=4, label='f4d')
         ax1.plot(r_src[:, 0], dene_src[:,0], color='black', lw=2, label='src')
-        ax1.set_xlim([0, 15])
+        ax1.set_xlim([0, r_src.max()])
         ax1.set_ylabel("density [cm^{-3}]")
         ax1.set_xlabel("Z [cm]")
         ax1.set_yscale('log')
@@ -723,12 +717,12 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
 
         ax2.plot(r_grid[:, iz], denf[:,iz], color='red', lw=4, label='f4d')
         ax2.plot(r_src[:, 0], dene_src[:,0], color='black', lw=2, label='src')
-        ax2.set_xlim([0, 15])
+        ax2.set_xlim([0, r_src.max()])
         ax2.set_ylabel("density [cm^{-3}]")
         ax2.set_xlabel("Z [cm]")
         ax2.set_yscale('linear')
         ax2.set_title('lin scale: R profile')
-        ax1.legend()
+        ax2.legend()
 
         # Save figure:
         if os.getenv("PREPROCESSOR_PLOT_SAVE") == "1":
@@ -742,15 +736,12 @@ def construct_f4d(config,grid,rho,plot_flag,include_f4d):
 
 def construct_inputs(config, nbi):
 
-    print("     running 'construct_inputs' ...")
+    print("     Running 'construct_inputs' ...")
 
     # Extract paths:
     cqlinput = config["cqlinput"]
     nc_file_name = config["plasma_file_name"]
     output_path = config["output_path"]
-
-    # Get directory for FIDASIM installation
-    fida_dir = fs.utils.get_fidasim_dir()
 
     # Read contents of cqlinput namelist file:
     with warnings.catch_warnings():
@@ -768,7 +759,7 @@ def construct_inputs(config, nbi):
     for ii in range(3):
         current_fractions[ii] = nml['frsetup']['fbcur'][0][ii]
 
-    if os.path.exists(nc_file_name) and not os.path.isdir(nc_file_name):
+    if os.path.isfile(nc_file_name):
         # Get time stamp and mass for this dataset:
         src_nc = read_ncdf(nc_file_name)
         threshold = 1e20
@@ -798,6 +789,7 @@ def construct_inputs(config, nbi):
     calc_npa_wght = 0
     calc_pfida = 0
     calc_pnpa = 0
+    flr = config['flr']
 
     # Number of particles to track:
     n_nbi = int(config["n_nbi"])
@@ -824,7 +816,7 @@ def construct_inputs(config, nbi):
                     "calc_birth":calc_birth, "calc_fida_wght":calc_fida_wght,"calc_npa_wght":calc_npa_wght,
                     "calc_pfida":calc_pfida, "calc_pnpa":calc_pnpa,
                     "result_dir": output_path, "tables_file": config['atomic_tables'],
-                    "verbose": config['verbose'], "time_index": valid_idx}
+                    "verbose": config['verbose'], "time_index": valid_idx, "flr": flr}
 
     # Define beam grid:
     basic_bgrid = {}
@@ -832,60 +824,44 @@ def construct_inputs(config, nbi):
     ny = config["beam_grid"]["ny"]
     nz = config["beam_grid"]["nz"]
 
-    if (config["beam_grid"]["beam_aligned"]):
-        # Beam-aligned beam grid:
+    # Origin of beam grid in UVW:
+    basic_bgrid["origin"] = np.array(config['beam_grid']['origin_uvw'])
 
-        rstart = float(config["beam_grid"]["rstart"])
-        length = float(config["beam_grid"]["length"])
-        width = float(config["beam_grid"]["width"])
-        height = float(config["beam_grid"]["height"])
-        basic_bgrid = beam_grid(nbi, rstart=rstart, nx=nx, ny=ny, nz=nz, length=length, width=width, height=height)
-    else:
-        # Machine-aligned beam grid:
+    # Bryan-Tait angles:
+    # Rotation is applied to the UVW coord system to produce the beam grid coord system XYZ
+    basic_bgrid["alpha"] = float(config["beam_grid"]["alpha"]) # Active rotation about "Z"
+    basic_bgrid["beta"]  = float(config["beam_grid"]["beta"]) # Active rotation about "Y'"
+    basic_bgrid["gamma"] = float(config["beam_grid"]["gamma"]) # Active rotation about "X''"
 
-        # Origin of beam grid in UVW:
-        basic_bgrid["origin"] = np.array(config['beam_grid']['origin_uvw'])
+    # Define boundaries of beam grid in XYZ coordinate system:
+    basic_bgrid["xmin"] = float(config["beam_grid"]["xmin"])
+    basic_bgrid["xmax"] = float(config["beam_grid"]["xmax"])
+    basic_bgrid["ymin"] = float(config["beam_grid"]["ymin"])
+    basic_bgrid["ymax"] = float(config["beam_grid"]["ymax"])
+    basic_bgrid["zmin"] = float(config["beam_grid"]["zmin"])
+    basic_bgrid["zmax"] = float(config["beam_grid"]["zmax"])
 
-        # Bryan-Tait angles:
-        # Rotation is applied to the UVW coord system to produce the beam grid coord system XYZ
-        basic_bgrid["alpha"] = float(config["beam_grid"]["alpha"]) # Active rotation about "Z"
-        basic_bgrid["beta"]  = float(config["beam_grid"]["beta"]) # Active rotation about "Y'"
-        basic_bgrid["gamma"] = float(config["beam_grid"]["gamma"]) # Active rotation about "X''"
-
-        # Define boundaries of beam grid in XYZ coordinate system:
-        basic_bgrid["xmin"] = float(config["beam_grid"]["xmin"])
-        basic_bgrid["xmax"] = float(config["beam_grid"]["xmax"])
-        basic_bgrid["ymin"] = float(config["beam_grid"]["ymin"])
-        basic_bgrid["ymax"] = float(config["beam_grid"]["ymax"])
-        basic_bgrid["zmin"] = float(config["beam_grid"]["zmin"])
-        basic_bgrid["zmax"] = float(config["beam_grid"]["zmax"])
-
-        # Number of elements of beam grid:
-        basic_bgrid["nx"] = nx
-        basic_bgrid["ny"] = ny
-        basic_bgrid["nz"] = nz
+    # Number of elements of beam grid:
+    basic_bgrid["nx"] = nx
+    basic_bgrid["ny"] = ny
+    basic_bgrid["nz"] = nz
 
     # Add beam grid to input namelist:
     inputs = basic_inputs.copy()
     inputs.update(basic_bgrid)
 
     # Inputs related to non-thermal beam deposition, ion sources and sinks development:
-    if "enable_nonthermal_calc" in config:
-        inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
-    if "calc_sink" in config:
-        inputs["calc_sink"] = config["calc_sink"]
-    if "enable_halo" in config:
-        inputs["enable_halo"] = config["enable_halo"]
+    inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
+    inputs["calc_sink"] = config["calc_sink"]
+    inputs["enable_halo"] = config["enable_halo"]
 
     # Metadata on simulation run:
     inputs["comment"] = config["comment"]
     inputs["runid"] = config["runid"]
 
-    # >>> [JFCM, 2025-10-24] >>>
-    # Store neutral reservoirs:
+    # Neutral reservoir options:
     inputs['output_neutral_reservoir'] = config['save_neutral_reservoir']
     inputs['reservoir_size'] = config['reservoir_size']
-    # <<< [JFCM, 2025-10-24] <<<
 
     return inputs
 
@@ -1013,18 +989,17 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
 
     # Compute the plasma dict:
     # ========================
-    # plasma = construct_plasma(config,grid,rho,plot_flag,config['plasma_from_cqlinput'])
     plasma = construct_plasma(config,grid,rho)
     if plot_flag:
         plot_plasma(config,grid,rho,plasma)
 
     # Compute fbm dict for ions:
     # =========================
-    # How do I enable reading both ion and electron f?
-    # What about for multiple ion species?
+    # TODO: How do I enable reading both ion and electron f?
+    # TODO: What about for multiple ion species?
     fbm = construct_f4d(config,grid,rho,plot_flag,config['include_f4d'])
 
-    # This may not be needed as this operation happens in read_f() subroutine in FIDASIM
+    # TODO: This may not be needed as this operation happens in read_f() subroutine in FIDASIM
     plasma['denf'] = fbm['denf']
 
     # Compute nbi dict from cqlinput:
@@ -1038,11 +1013,6 @@ def construct_fidasim_inputs_from_cql3d(config, plot_flag):
     inputs = construct_inputs(config, nbi)
     if plot_flag:
         plot_beam_grid(fig,ax,config)
-
-    # >>> [JFCM, 2025_09_15] >>>
-    # TODO: add this to fida_config.nml
-    # inputs['verbose'] = 0
-    # <<< [JFCM, 2025-09-15] <<<
 
     # Produce input files for FIDASIM:
     # ================================
@@ -1142,10 +1112,7 @@ def construct_preprocessor_config(run_dir):
     config["comment"] = fida_nml['fidasim_run_info']['comment']
 
     # Verbose:
-    if fida_nml['fidasim_run_info'].get('verbose') is None:
-        config['verbose'] = 1
-    else:
-        config['verbose'] = fida_nml['fidasim_run_info']['verbose']
+    config["verbose"] = fida_nml["fidasim_run_info"].get("verbose", 1)
 
     # R-Z Interpolation grid:
     sub_nml = fida_nml['rz_interpolation_grid']
@@ -1155,6 +1122,7 @@ def construct_preprocessor_config(run_dir):
     config["zmin"] = sub_nml['zmin']
     config["zmax"] = sub_nml['zmax']
     config["nz"] = sub_nml['nz']
+    config["rho_max"] = sub_nml.get("rho_max",1.5)
 
     # GET EQDSK file info:
     if cql_nml['eqsetup']['eqsource'] == 'eqdsk':
@@ -1169,24 +1137,10 @@ def construct_preprocessor_config(run_dir):
     elif cql_nml['setup']['machine'] == "toroidal":
         config["eqdsk_type"] = 2
 
-    #  TODO: need to remove this block, we no longer use plasma from cqlinput
-    # Define "plasma_from_cqlinput" flag:
-    # if "plasma_from_cqlinput" in fida_nml['cql3d_input_files']:
-    #     config["plasma_from_cqlinput"] = fida_nml['cql3d_input_files']['plasma_from_cqlinput']
-    # else:
-    #     config["plasma_from_cqlinput"] = False
-    #
-    # # Get mnemonic.nc file:
-    # config["plasma_file_name"] = ''
-    # if config["plasma_from_cqlinput"] == False:
-    #     config["plasma_file_name"] = os.path.join(run_dir,cql_nml['setup0']['mnemonic'] + ".nc")
-
     config["plasma_file_name"] = os.path.join(run_dir, cql_nml['setup0']['mnemonic'] + ".nc")
 
     # Define "include_f4d" flag:
-    config["include_f4d"] = False
-    if "include_f4d" in fida_nml['cql3d_input_files']:
-        config["include_f4d"] = fida_nml['cql3d_input_files']['include_f4d']
+    config["include_f4d"] = fida_nml["cql3d_input_files"].get("include_f4d", False)
 
     # Get the f4d file names:
     config["f4d_ion_file_name"] = ''
@@ -1215,7 +1169,6 @@ def construct_preprocessor_config(run_dir):
         os.makedirs(config['output_path'], exist_ok=True)
 
     if 'figures_dir' not in fida_nml['preprocessor_output']:
-        # Key missing → default
         config['figures_dir'] = run_dir
     else:
         target_dir = fida_nml['preprocessor_output']['figures_dir']
@@ -1230,17 +1183,13 @@ def construct_preprocessor_config(run_dir):
     # TODO: need to change name of "enable_nonthermal_calc" as we are no longer performing nonthermal beam deposition
     # TODO: we are still performing sampling of non-thermal ion PDF for CX.
     # TODO: maybe rename it to "sample_nonthermal_distribution"
-    if "enable_nonthermal_calc" in sub_nml:
-        config['enable_nonthermal_calc'] = sub_nml['enable_nonthermal_calc']
-    if "calc_sink" in sub_nml:
-        config['calc_sink'] = sub_nml['calc_sink']
-    config['calc_birth'] = sub_nml['calc_birth']
-    config['calc_dcx'] = sub_nml['calc_dcx']
-    config['calc_halo'] = sub_nml['calc_halo']
-    if "enable_halo" in sub_nml:
-        config['enable_halo'] = sub_nml['enable_halo']
-    else:
-        config['enable_halo'] = 0
+    config["enable_nonthermal_calc"] = sub_nml.get("enable_nonthermal_calc", 1)
+    config["calc_sink"] = sub_nml.get('calc_sink', 0)
+    config["calc_birth"] = sub_nml.get('calc_birth',1)
+    config['calc_dcx'] = sub_nml.get('calc_dcx',0)
+    config['calc_halo'] = sub_nml.get('calc_halo',0)
+    config['enable_halo'] = sub_nml.get('enable_halo', 0)
+    config['flr'] = sub_nml.get('flr',2)
 
     # Define atomic table to use:
     default_dir = os.getenv('FIDASIM_DIR') + "/tables/"
@@ -1255,41 +1204,36 @@ def construct_preprocessor_config(run_dir):
     config['n_birth'] = sub_nml['n_birth']
     config['n_dcx'] = sub_nml['n_dcx']
     config['n_halo'] = sub_nml['n_halo']
-    if 'save_neutral_reservoir' in sub_nml:
-        config['save_neutral_reservoir'] = sub_nml['save_neutral_reservoir']
-    else:
-        config['save_neutral_reservoir'] = 0
-    if 'reservoir_size' in sub_nml:
-        config['reservoir_size'] = sub_nml['reservoir_size']
-    else:
-        config['reservoir_size'] = 50
+    config['save_neutral_reservoir'] = sub_nml.get('save_neutral_reservoir', 0)
+    config['reservoir_size'] = sub_nml.get('reservoir_size', 50)
 
     # Define beam grid parameters:
     sub_nml = fida_nml['beam_grid']
     config["beam_grid"] = {}
-    config["beam_grid"]["beam_aligned"] = sub_nml['beam_aligned']  # Option between machine-aligned or beam-aligned
+    # config["beam_grid"]["beam_aligned"] = sub_nml['beam_aligned']  # Option between machine-aligned or beam-aligned
     config["beam_grid"]["nx"] = sub_nml['nx']
     config["beam_grid"]["ny"] = sub_nml['ny']
     config["beam_grid"]["nz"] = sub_nml['nz']
 
     # Only used when "beam_aligned" == True
-    if config["beam_grid"]["beam_aligned"]:
-        config["beam_grid"]["rstart"] = sub_nml['rstart']
-        config["beam_grid"]["length"] = sub_nml['length']
-        config["beam_grid"]["width"] = sub_nml['width']
-        config["beam_grid"]["height"] = sub_nml['height']
-    else:
+    # if config["beam_grid"]["beam_aligned"]:
+    #     config["beam_grid"]["rstart"] = sub_nml['rstart']
+    #     config["beam_grid"]["length"] = sub_nml['length']
+    #     config["beam_grid"]["width"] = sub_nml['width']
+    #     config["beam_grid"]["height"] = sub_nml['height']
+    # else:
         # Only used when "beam_aligned" == False
-        config["beam_grid"]["alpha"] = sub_nml['alpha']
-        config["beam_grid"]["beta"] = sub_nml['beta']
-        config["beam_grid"]["gamma"] = sub_nml['gamma']
-        config["beam_grid"]["xmin"] = sub_nml['xmin']
-        config["beam_grid"]["xmax"] = sub_nml['xmax']
-        config["beam_grid"]["ymin"] = sub_nml['ymin']
-        config["beam_grid"]["ymax"] = sub_nml['ymax']
-        config["beam_grid"]["zmin"] = sub_nml['zmin']
-        config["beam_grid"]["zmax"] = sub_nml['zmax']
-        config["beam_grid"]["origin_uvw"] = sub_nml['origin_uvw']
+
+    config["beam_grid"]["alpha"] = sub_nml['alpha']
+    config["beam_grid"]["beta"] = sub_nml['beta']
+    config["beam_grid"]["gamma"] = sub_nml['gamma']
+    config["beam_grid"]["xmin"] = sub_nml['xmin']
+    config["beam_grid"]["xmax"] = sub_nml['xmax']
+    config["beam_grid"]["ymin"] = sub_nml['ymin']
+    config["beam_grid"]["ymax"] = sub_nml['ymax']
+    config["beam_grid"]["zmin"] = sub_nml['zmin']
+    config["beam_grid"]["zmax"] = sub_nml['zmax']
+    config["beam_grid"]["origin_uvw"] = sub_nml['origin_uvw']
 
     return config
 

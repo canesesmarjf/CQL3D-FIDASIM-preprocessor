@@ -1,4 +1,12 @@
 #!/bin/bash
+#SBATCH --time=40:00:00
+#SBATCH --constraint=cpu
+#SBATCH --qos=regular
+#SBATCH --mail-user=caneses@compxco.com
+#SBATCH --mail-type=ALL
+#SBATCH --nodes=1
+#SBATCH --ntasks=11
+#SBATCH --cpus-per-task=14
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # ================= START USER INPUTS: ======================

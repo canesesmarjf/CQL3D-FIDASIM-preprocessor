@@ -177,6 +177,7 @@ def construct_plasma(config,grid,rho):
     # zeff = np.where(rho > rho_LCFS, zeff_LCFS, zeff)
 
     # Add exponential decay to profiles:
+    # TODO: Need to add the exponential decay SOL values as namelist variables
     dene_min = dene_LCFS/100
     te_min = te_LCFS/100
     ti_min = ti_LCFS/100

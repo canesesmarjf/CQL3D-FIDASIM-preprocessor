@@ -1366,7 +1366,7 @@ disp(" ")
 disp(" Neutral densities: ")
 
 % Diagnostics:
-infoif 0
+if 0
     disp({info.Groups.Name})
     disp({info.Groups(2).Datasets.Name})
     disp(info.Groups(2).Datasets(1).Dataspace)

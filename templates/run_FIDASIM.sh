@@ -1,9 +1,16 @@
 #!/bin/bash
+#SBATCH --time=00:10:00
+#SBATCH --constraint=cpu
+#SBATCH --qos=regular
+#SBATCH --mail-user=caneses@compxco.com
+#SBATCH --mail-type=ALL
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=25
 
-# USER INPUTS:
-# ============================================================
-# ======================= USER INPUTS ========================
-# ============================================================
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# ================= START USER INPUTS: ======================
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Computational resources:
 FIDASIM_NUM_THREADS=16
@@ -29,11 +36,11 @@ FIDASIM_EXECUTABLE=fidasim
 FIDASIM_DEBUG=0
 FORGE_DIR="/home/jfcm/linaro/forge/24.0.2/bin"
 
-# ============================================================
-# ======================= USER INPUTS ========================
-# ============================================================
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ==================== END USER INPUTS: =====================
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-# Run FIDASIM workflow:
+# Launch FIDASIM workflow:
 python_package="cql3d_to_fidasim_preprocessor/"
 source $PREPROCESSOR_DIR/$python_package"activate_conda_env.sh"
 source $PREPROCESSOR_DIR/$python_package"export_variables.sh"

@@ -13,10 +13,7 @@
 # Ignore all .png files:
 *.png
 
-# Ignore all .pdf files in fidasim_files/:
-fidasim_files/**/*.pdf
-cql3d_files/**/*.pdf
-run_dir/**/*.pdf
+# Ignore all .pdf files in run directories/:
 Step_1a_coupled_runs/**/*.pdf
 Step_1b_standalone_runs/**/*.pdf
 
@@ -24,8 +21,7 @@ Step_1b_standalone_runs/**/*.pdf
 Step_1a_coupled_runs/**/*.zip
 Step_1b_standalone_runs/**/*.zip
 
-# ignore from cql3d:
-run_dir/**/distrfunc
+# Ignore from cql3d:
 Step_1a_coupled_runs/**/distrfunc
 
 # Ignore all files relating to pycharm env:

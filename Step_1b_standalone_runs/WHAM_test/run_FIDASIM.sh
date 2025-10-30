@@ -1,17 +1,24 @@
 #!/bin/bash
+#SBATCH --time=00:10:00
+#SBATCH --constraint=cpu
+#SBATCH --qos=regular
+#SBATCH --mail-user=caneses@compxco.com
+#SBATCH --mail-type=ALL
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=25
 
-# USER INPUTS:
-# ============================================================
-# ======================= USER INPUTS ========================
-# ============================================================
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# ================= START USER INPUTS: ======================
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Computational resources:
 FIDASIM_NUM_THREADS=16
 
 # Select FIDASIM processes to run in the workflow:
 FIDASIM_RUN_PREPROCESSOR=1
-FIDASIM_RUN_EXEC=0
-FIDASIM_RUN_SRCS_TO_TXT=0
+FIDASIM_RUN_EXEC=1
+FIDASIM_RUN_SRCS_TO_TXT=1
 
 # Output options:
 PREPROCESSOR_PLOT_CREATE=1 # Create figures
@@ -29,11 +36,11 @@ FIDASIM_EXECUTABLE=fidasim
 FIDASIM_DEBUG=0
 FORGE_DIR="/home/jfcm/linaro/forge/24.0.2/bin"
 
-# ============================================================
-# ======================= USER INPUTS ========================
-# ============================================================
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# ==================== END USER INPUTS: =====================
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-# Run FIDASIM workflow:
+# Launch FIDASIM workflow:
 python_package="cql3d_to_fidasim_preprocessor/"
 source $PREPROCESSOR_DIR/$python_package"activate_conda_env.sh"
 source $PREPROCESSOR_DIR/$python_package"export_variables.sh"

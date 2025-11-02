@@ -22,7 +22,7 @@ FIDASIM_RUN_SRCS_TO_TXT=1
 
 # Output options:
 PREPROCESSOR_PLOT_CREATE=1 # Create figures
-PREPROCESSOR_PLOT_SHOW=1 # Show figures on screen
+PREPROCESSOR_PLOT_SHOW=0 # Show figures on screen
 PREPROCESSOR_PLOT_SAVE=1 # Save figures
 
 # Environment:

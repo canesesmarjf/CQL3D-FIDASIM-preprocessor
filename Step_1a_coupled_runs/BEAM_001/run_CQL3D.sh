@@ -5,16 +5,16 @@
 #SBATCH --mail-user=caneses@compxco.com
 #SBATCH --mail-type=ALL
 #SBATCH --nodes=1
-#SBATCH --ntasks=11
-#SBATCH --cpus-per-task=14
+#SBATCH --ntasks=10
+#SBATCH --cpus-per-task=12
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # ================= START USER INPUTS: ======================
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Computational resources:
-CQL3D_NUM_PROCS=8
-FIDASIM_NUM_THREADS=20
+CQL3D_NUM_PROCS=10
+FIDASIM_NUM_THREADS=12
 
 # Output options:
 CLI_TO_TXT=0 # Record terminal output to text file
@@ -23,7 +23,6 @@ PREPROCESSOR_PLOT_SHOW=1 # Show figures on screen
 PREPROCESSOR_PLOT_SAVE=1 # Save figures
 
 # Environment:
-#CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2024_02_27/src'
 CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2025_09_20/src'
 FIDASIM_DIR="/home/jfcm/Repos/FIDASIM"
 PREPROCESSOR_DIR="/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor"

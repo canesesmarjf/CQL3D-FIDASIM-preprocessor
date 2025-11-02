@@ -4,13 +4,13 @@
 /
 
 &preprocessor_output
-  ! output_dir = "./outputs/" ! Leave empty or ./ to direct output config file location [DOEST NOT WORK]
-  output_dir = ""
+  output_dir = "" ! Leave empty or ./ to direct output config file location [DOEST NOT WORK]
   figures_dir = "./figures/" ! Leave empty or ./ to direct output config file location
 /
 
 &cql3d_input_files
   include_f4d = 1 ! Flag to read in non-thermal ion distribution function
+  full_f = 1 ! 0: fast correction, 1: full f(v)
 /
 
 &rz_interpolation_grid
@@ -33,7 +33,8 @@
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 1
+  non_thermal_beam_stopping = 0
+  non_thermal_cx_sampling = 1
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0

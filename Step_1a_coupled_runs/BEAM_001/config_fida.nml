@@ -1,16 +1,16 @@
 &fidasim_run_info
-  comment = "BEAM case. Basic run with birth points only. Omitting non-thermal calculations and sinks"
-  verbose = 0 ! Default 1
+  comment = "BEAM case"
+  verbose = 1 ! Default 1
 /
 
 &preprocessor_output
-  ! output_dir = "./outputs/" ! Leave empty or ./ to direct output config file location [DOEST NOT WORK]
-  output_dir = ""
+  output_dir = "" ! Leave empty or ./ to direct output config file location [DOEST NOT WORK]
   figures_dir = "./figures/" ! Leave empty or ./ to direct output config file location
 /
 
 &cql3d_input_files
   include_f4d = 1 ! Flag to read in non-thermal ion distribution function
+  full_f = 1 ! 0: fast correction, 1: full f(v)
 /
 
 &rz_interpolation_grid
@@ -20,7 +20,7 @@
   zmin = -450.0 ! [cm]
   zmax = 450.0 ! [cm]
   nz = 100
-  rho_max = 1.0 ! max rho value where plasma mask is valid
+  rho_max = 1.3 ! max rho value where plasma mask is valid
 /
 
 &plasma_profiles_params
@@ -33,7 +33,8 @@
 /
 
 &beam_physics_switches
-  enable_nonthermal_calc = 1
+  non_thermal_beam_stopping = 0
+  non_thermal_cx_sampling = 1
   calc_sink = 1
   calc_birth = 1
   calc_dcx = 0

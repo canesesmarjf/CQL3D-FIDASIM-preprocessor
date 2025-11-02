@@ -852,7 +852,10 @@ def construct_inputs(config, nbi):
     inputs.update(basic_bgrid)
 
     # Inputs related to non-thermal beam deposition, ion sources and sinks development:
-    inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
+    inputs["full_f"] = config["full_f"]
+    # inputs["enable_nonthermal_calc"] = config["enable_nonthermal_calc"]
+    inputs["non_thermal_beam_stopping"] = config["non_thermal_beam_stopping"]
+    inputs["non_thermal_cx_sampling"] = config["non_thermal_cx_sampling"]
     inputs["calc_sink"] = config["calc_sink"]
     inputs["enable_halo"] = config["enable_halo"]
 
@@ -1143,6 +1146,11 @@ def construct_preprocessor_config(run_dir):
     # Define "include_f4d" flag:
     config["include_f4d"] = fida_nml["cql3d_input_files"].get("include_f4d", False)
 
+    # Define how the f4d distribution function is to be interpreted:
+    # 0: fast ion correction << than thermal plasma f
+    # 1: there is no distinction between thermal and fast f. the f4d is the full distribution function:
+    config["full_f"] = fida_nml["cql3d_input_files"].get("full_f", 1)
+
     # Get the f4d file names:
     config["f4d_ion_file_name"] = ''
     config["f4d_electron_file_name"] = ''
@@ -1181,10 +1189,12 @@ def construct_preprocessor_config(run_dir):
 
     # Beam physics switches:
     sub_nml = fida_nml['beam_physics_switches']
-    # TODO: need to change name of "enable_nonthermal_calc" as we are no longer performing nonthermal beam deposition
-    # TODO: we are still performing sampling of non-thermal ion PDF for CX.
-    # TODO: maybe rename it to "sample_nonthermal_distribution"
-    config["enable_nonthermal_calc"] = sub_nml.get("enable_nonthermal_calc", 1)
+    config["non_thermal_beam_stopping"] = sub_nml.get("non_thermal_beam_stopping", 1)
+    config["non_thermal_cx_sampling"] = sub_nml.get("non_thermal_cx_sampling", 1)
+    if not config["full_f"]:
+        # If distribution function is only the fast correction, then cannot compute non-thermal effects in FIDASIM
+        config["non_thermal_beam_stopping"] = 0
+        config["non_thermal_cx_sampling"] = 0
     config["calc_sink"] = sub_nml.get('calc_sink', 0)
     config["calc_birth"] = sub_nml.get('calc_birth',1)
     config['calc_dcx'] = sub_nml.get('calc_dcx',0)
@@ -1211,20 +1221,9 @@ def construct_preprocessor_config(run_dir):
     # Define beam grid parameters:
     sub_nml = fida_nml['beam_grid']
     config["beam_grid"] = {}
-    # config["beam_grid"]["beam_aligned"] = sub_nml['beam_aligned']  # Option between machine-aligned or beam-aligned
     config["beam_grid"]["nx"] = sub_nml['nx']
     config["beam_grid"]["ny"] = sub_nml['ny']
     config["beam_grid"]["nz"] = sub_nml['nz']
-
-    # Only used when "beam_aligned" == True
-    # if config["beam_grid"]["beam_aligned"]:
-    #     config["beam_grid"]["rstart"] = sub_nml['rstart']
-    #     config["beam_grid"]["length"] = sub_nml['length']
-    #     config["beam_grid"]["width"] = sub_nml['width']
-    #     config["beam_grid"]["height"] = sub_nml['height']
-    # else:
-        # Only used when "beam_aligned" == False
-
     config["beam_grid"]["alpha"] = sub_nml['alpha']
     config["beam_grid"]["beta"] = sub_nml['beta']
     config["beam_grid"]["gamma"] = sub_nml['gamma']
@@ -1296,10 +1295,16 @@ def write_fidasim_input_namelist(filename, inputs):
         f.write("calc_npa_wght = {:d}    !! Calculate NPA weights\n".format(inputs['calc_npa_wght']))
         f.write("calc_res = {:d}    !! Calculate spatial resolution\n".format(inputs['calc_res']))
 
-        if "enable_nonthermal_calc" in inputs:
-            # Add new inputs when running non-thermal calculations:
-            f.write("\n!! Non-thermal beam deposition switches\n")
-            f.write("enable_nonthermal_calc = {:d} !! Enable the use of f4d to calculate beam deposition\n".format(inputs['enable_nonthermal_calc']))
+        if "full_f" in inputs:
+            f.write("\n!! Non-thermal beam physics switches\n")
+            f.write("full_f = {:d} !! 0: f4d is only fast component, 1: f4d is full distribution function\n".format(
+                inputs['full_f']))
+        if "non_thermal_beam_stopping" in inputs:
+            f.write("non_thermal_beam_stopping = {:d} !! Enable the use of f4d to calculate beam deposition\n".format(
+                inputs['non_thermal_beam_stopping']))
+        if "non_thermal_cx_sampling" in inputs:
+            f.write("non_thermal_cx_sampling = {:d} !! Enable the use of f4d to calculate CX process\n".format(
+                inputs['non_thermal_cx_sampling']))
         if "calc_sink" in inputs:
             f.write("calc_sink = {:d} !! Calculate ion sink process\n".format(inputs['calc_sink']))
         if "enable_halo" in inputs:

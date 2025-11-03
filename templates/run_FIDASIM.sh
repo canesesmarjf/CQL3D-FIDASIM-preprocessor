@@ -22,7 +22,7 @@ FIDASIM_RUN_SRCS_TO_TXT=1
 
 # Output options:
 PREPROCESSOR_PLOT_CREATE=1 # Create figures
-PREPROCESSOR_PLOT_SHOW=1 # Show figures on screen
+PREPROCESSOR_PLOT_SHOW=0 # Show figures on screen
 PREPROCESSOR_PLOT_SAVE=1 # Save figures
 
 # Environment:
@@ -42,6 +42,7 @@ FORGE_DIR="/home/jfcm/linaro/forge/24.0.2/bin"
 
 # Launch FIDASIM workflow:
 python_package="cql3d_to_fidasim_preprocessor/"
+source $PREPROCESSOR_DIR/$python_package"setup_perlmutter.sh"
 source $PREPROCESSOR_DIR/$python_package"activate_conda_env.sh"
 source $PREPROCESSOR_DIR/$python_package"export_variables.sh"
 source $PREPROCESSOR_DIR/$python_package"Launch_FIDASIM_workflow.sh"

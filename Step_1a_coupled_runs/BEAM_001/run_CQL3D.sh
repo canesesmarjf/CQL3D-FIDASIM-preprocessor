@@ -43,6 +43,7 @@ FORGE_DIR="/home/jfcm/linaro/forge/24.0.2/bin"
 
 # Launch CQL3D:
 python_package="cql3d_to_fidasim_preprocessor/"
+source $PREPROCESSOR_DIR/$python_package"setup_perlmutter.sh"
 source $PREPROCESSOR_DIR/$python_package"activate_conda_env.sh"
 source $PREPROCESSOR_DIR/$python_package"export_variables.sh"
 source $PREPROCESSOR_DIR/$python_package"Launch_CQL3D.sh"

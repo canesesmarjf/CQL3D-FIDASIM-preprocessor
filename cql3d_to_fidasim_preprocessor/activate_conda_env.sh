@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Activate conda environment:
 if [[ "$NERSC_HOST" == "perlmutter" ]]; then
   echo "Running on Perlmutter"

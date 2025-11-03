@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # RUN directory and id:
 export RUN_DIR=$PWD
 export RUN_ID=$(basename "$RUN_DIR")

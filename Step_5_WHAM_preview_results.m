@@ -25,6 +25,7 @@ scenario = 10;
 scenario = 1;
 scenario = 12;
 scenario = 15;
+scenario = 14.1;
 
 switch scenario
     case 1
@@ -98,7 +99,12 @@ switch scenario
         scenario = "2025_08_22_FLR_0/";
         scenario = "";
         fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;
-        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;          
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;
+    case 14.1
+        run_id = "WHAM_001";
+        scenario = "";
+        fidasim_run_dir  = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;
+        cql3d_run_dir = "./Step_1b_standalone_runs/" + run_id + "/" + scenario;         
     case 15
         run_id = "BEAM_003";
         scenario = "";
@@ -121,7 +127,7 @@ end
 nbi_geom = read_fidasim_geometry(fidasim_run_dir, run_id);
 inputs = read_fidasim_inputs(fidasim_run_dir, run_id);
 beam_grid = calculate_fidasim_beam_grid(inputs);
-config = read_config_files(fidasim_run_dir,cql3d_run_dir,run_id);
+% config = read_config_files(fidasim_run_dir,cql3d_run_dir,run_id);
 
 % TODO:
 % The interpolation grid data () is to be found in "plasma"
@@ -213,11 +219,13 @@ end
 % =========================================================================
 % Read CQLINPUT: ( we could get the NBI power from the run_id.dat file
 % instead.
-cqlinput_file = cql3d_run_dir + config.cql3d.cqlinput;
+% cqlinput_file = cql3d_run_dir + config.cql3d.cqlinput;
+cqlinput_file = cql3d_run_dir + "cqlinput";
 cqlinput_nml = read_nml(cqlinput_file);
 
 % CQL3D mnemonic netCDF file:
-cql_mnemonic_file = cql3d_run_dir + config.cql3d.plasma_file_name;
+% cql_mnemonic_file = cql3d_run_dir + config.cql3d.plasma_file_name;
+cql_mnemonic_file = cql3d_run_dir + cqlinput_nml.setup0.mnemonic;
 if exist(cql_mnemonic_file,'file')==2
     cql3d_nc = read_cql3d_mnemonic(cql3d_run_dir,config);
 end

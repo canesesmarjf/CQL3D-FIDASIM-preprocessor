@@ -23,9 +23,9 @@ PREPROCESSOR_PLOT_SHOW=1 # Show figures on screen
 PREPROCESSOR_PLOT_SAVE=1 # Save figures
 
 # Environment:
-CQL3DM_DIR='/home/jfcm/Repos/CQL3DM/2025_09_20/src'
-FIDASIM_DIR="/home/jfcm/Repos/FIDASIM"
-PREPROCESSOR_DIR="/home/jfcm/Repos/CQL3D-FIDASIM-preprocessor"
+CQL3DM_DIR="$HOME/Repos/CQL3DM/2025_09_20/src"
+FIDASIM_DIR="$HOME/Repos/FIDASIM"
+PREPROCESSOR_DIR="$HOME/Repos/CQL3D-FIDASIM-preprocessor"
 
 # Executable:
 CQL3D_EXECUTABLE=xcql3dm_mpi.gfortran64
@@ -35,7 +35,7 @@ FIDASIM_EXECUTABLE=fidasim
 
 # Debug options:
 CQL3D_DEBUG=0
-FORGE_DIR="/home/jfcm/linaro/forge/24.0.2/bin"
+FORGE_DIR="/global/common/software/nersc9/forge/24.0.5/bin"
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # ==================== END USER INPUTS: =====================

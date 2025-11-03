@@ -16,13 +16,13 @@
 FIDASIM_NUM_THREADS=16
 
 # Select FIDASIM processes to run in the workflow:
-FIDASIM_RUN_PREPROCESSOR=0
+FIDASIM_RUN_PREPROCESSOR=1
 FIDASIM_RUN_EXEC=1
 FIDASIM_RUN_SRCS_TO_TXT=1
 
 # Output options:
 PREPROCESSOR_PLOT_CREATE=1 # Create figures
-PREPROCESSOR_PLOT_SHOW=0 # Show figures on screen
+PREPROCESSOR_PLOT_SHOW=1 # Show figures on screen
 PREPROCESSOR_PLOT_SAVE=1 # Save figures
 
 # Environment:

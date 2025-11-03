@@ -1,0 +1,5 @@
+To create conda environment, just type:
+
+cd path/to/preprocessor
+cd Step_0_create_environment/
+source create_conda_env.sh
